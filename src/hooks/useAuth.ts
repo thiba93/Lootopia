@@ -192,7 +192,15 @@ export const useAuth = () => {
   const signUp = async (email: string, password: string, username: string) => {
     try {
       setLoading(true);
+      
+      // Timeout de sécurité pour le hook
+      const hookTimeout = setTimeout(() => {
+        setLoading(false);
+      }, 25000);
+      
       const { data, error } = await auth.signUp(email, password, username);
+      
+      clearTimeout(hookTimeout);
       
       if (error) {
         throw error;
@@ -209,7 +217,15 @@ export const useAuth = () => {
   const signIn = async (email: string, password: string) => {
     try {
       setLoading(true);
+      
+      // Timeout de sécurité pour le hook
+      const hookTimeout = setTimeout(() => {
+        setLoading(false);
+      }, 25000);
+      
       const { data, error } = await auth.signIn(email, password);
+      
+      clearTimeout(hookTimeout);
       
       if (error) {
         throw error;

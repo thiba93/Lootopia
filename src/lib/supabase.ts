@@ -64,32 +64,59 @@ export { supabase };
 export const auth = {
   signUp: async (email: string, password: string, username: string) => {
     try {
-      const { data, error } = await supabase.auth.signUp({
+      // Timeout pour éviter l'attente infinie
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Timeout: Inscription trop longue')), 15000)
+      );
+      
+      const signUpPromise = supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
             username,
           },
+          emailRedirectTo: undefined, // Désactiver la confirmation par email
         },
       });
+      
+      const { data, error } = await Promise.race([signUpPromise, timeoutPromise]) as any;
+      
       return { data, error };
     } catch (error: any) {
       console.error('SignUp error:', error);
-      return { data: null, error };
+      return { 
+        data: null, 
+        error: { 
+          message: error.message || 'Erreur lors de l\'inscription. Veuillez réessayer.' 
+        } 
+      };
     }
   },
 
   signIn: async (email: string, password: string) => {
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      // Timeout pour éviter l'attente infinie
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Timeout: Connexion trop longue')), 15000)
+      );
+      
+      const signInPromise = supabase.auth.signInWithPassword({
         email,
         password,
       });
+      
+      const { data, error } = await Promise.race([signInPromise, timeoutPromise]) as any;
+      
       return { data, error };
     } catch (error: any) {
       console.error('SignIn error:', error);
-      return { data: null, error };
+      return { 
+        data: null, 
+        error: { 
+          message: error.message || 'Erreur lors de la connexion. Veuillez réessayer.' 
+        } 
+      };
     }
   },
 

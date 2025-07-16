@@ -26,30 +26,42 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
     setLoading(true);
     setError(null);
     
+    // Timeout de sécurité côté composant
+    const componentTimeout = setTimeout(() => {
+      setLoading(false);
+      setError('Opération trop longue. Veuillez réessayer.');
+    }, 20000);
+    
     try {
       if (isLogin) {
         const { error } = await signIn(formData.email, formData.password);
         if (error) {
+          clearTimeout(componentTimeout);
           setError(error.message);
           return;
         }
       } else {
         if (formData.password !== formData.confirmPassword) {
+          clearTimeout(componentTimeout);
           setError('Les mots de passe ne correspondent pas');
           return;
         }
         
         const { error } = await signUp(formData.email, formData.password, formData.username);
         if (error) {
+          clearTimeout(componentTimeout);
           setError(error.message);
           return;
         }
       }
       
+      clearTimeout(componentTimeout);
       onClose();
     } catch (err: any) {
+      clearTimeout(componentTimeout);
       setError(err.message || 'Une erreur est survenue');
     } finally {
+      clearTimeout(componentTimeout);
       setLoading(false);
     }
   };
@@ -166,17 +178,32 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-3 rounded-lg font-semibold hover:from-purple-600 hover:to-pink-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105 disabled:transform-none"
+            className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-3 rounded-lg font-semibold hover:from-purple-600 hover:to-pink-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105 disabled:transform-none relative"
           >
             {loading ? (
               <div className="flex items-center justify-center space-x-2">
                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                <span>Chargement...</span>
+                <span>{isLogin ? 'Connexion...' : 'Inscription...'}</span>
               </div>
             ) : (
               isLogin ? 'Se connecter' : 'S\'inscrire'
             )}
           </button>
+          
+          {loading && (
+            <div className="mt-2 text-center">
+              <button
+                type="button"
+                onClick={() => {
+                  setLoading(false);
+                  setError('Opération annulée par l\'utilisateur');
+                }}
+                className="text-white/60 hover:text-white text-sm underline"
+              >
+                Annuler
+              </button>
+            </div>
+          )}
         </form>
 
         <div className="mt-6 text-center border-t border-white/10 pt-6">
