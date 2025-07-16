@@ -14,6 +14,7 @@ export interface Database {
           id: string
           username: string
           email: string
+          role: 'player' | 'organizer'
           points: number
           level: number
           avatar_url: string | null
@@ -24,6 +25,7 @@ export interface Database {
           id: string
           username: string
           email: string
+          role?: 'player' | 'organizer'
           points?: number
           level?: number
           avatar_url?: string | null
@@ -34,6 +36,7 @@ export interface Database {
           id?: string
           username?: string
           email?: string
+          role?: 'player' | 'organizer'
           points?: number
           level?: number
           avatar_url?: string | null

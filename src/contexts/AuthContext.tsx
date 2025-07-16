@@ -134,7 +134,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           id: profile.id,
           username: profile.username,
           email: profile.email,
-          role: profile.role || 'player',
+          role: (profile.role as 'player' | 'organizer') || 'player',
           points: profile.points || 0,
           level: profile.level || 1,
           avatar: profile.avatar_url,
@@ -312,6 +312,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       // Mode démo en cas d'erreur
       const demoUser = createDemoUser(email, 'DemoUser');
+      // Assigner le rôle organizer si email contient "admin"
+      if (email.toLowerCase().includes('admin')) {
+        demoUser.role = 'organizer';
+      }
       setUser(demoUser);
       
       return { success: true }; // Succès en mode démo

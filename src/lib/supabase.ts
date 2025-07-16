@@ -51,7 +51,8 @@ export const authService = {
           username,
           email,
           points: 0,
-          level: 1
+          level: 1,
+          role: username.toLowerCase().includes('admin') ? 'organizer' : 'player'
         });
 
       if (profileError) {
