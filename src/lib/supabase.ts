@@ -1,11 +1,14 @@
 import { createClient } from '@supabase/supabase-js';
 import { Database } from '../types/database';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://placeholder.supabase.co';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'placeholder-key';
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Variables d\'environnement Supabase manquantes');
+// Mode dégradé si les variables d'environnement sont manquantes
+const isDemoMode = !import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+if (isDemoMode) {
+  console.warn('⚠️ Mode démo activé - Variables Supabase manquantes');
 }
 
 export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
@@ -16,6 +19,11 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   }
 });
 
+// Export du mode démo
+export { isDemoMode };
+
+// Fonctions d'authentification simplifiées avec mode démo
+export const authService = {
 // Fonctions d'authentification simplifiées
 export const authService = {
   // Inscription

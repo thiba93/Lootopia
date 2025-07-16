@@ -31,7 +31,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [supabaseUser, setSupabaseUser] = useState<SupabaseUser | null>(null);
   const [loading, setLoading] = useState(false);
-  const [initialized, setInitialized] = useState(false);
 
   const isAuthenticated = !!user && !!supabaseUser;
 
@@ -56,6 +55,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             id: supabaseUser.id,
             username: supabaseUser.user_metadata?.username || supabaseUser.email?.split('@')[0] || 'User',
             email: supabaseUser.email || '',
+            role: 'player', // Rôle par défaut
             points: 0,
             level: 1
           })
@@ -72,6 +72,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             id: newProfile.id,
             username: newProfile.username,
             email: newProfile.email,
+            role: newProfile.role || 'player',
             points: newProfile.points || 0,
             level: newProfile.level || 1,
             avatar: newProfile.avatar_url,
@@ -79,6 +80,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             achievements: [],
             completedHunts: [],
             createdHunts: [],
+            activeHunts: [],
           };
           
           setUser(userData);
@@ -108,7 +110,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  // Initialisation simple
+  // Initialisation simple et non-bloquante
   useEffect(() => {
     let mounted = true;
 
@@ -116,24 +118,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         
-        if (mounted) {
-          if (session?.user) {
-            console.log('✅ Session existante trouvée');
-            setSupabaseUser(session.user);
-            await loadUserProfile(session.user);
-          } else {
-            console.log('ℹ️ Aucune session');
-          }
-          setInitialized(true);
+        if (mounted && session?.user) {
+          console.log('✅ Session existante trouvée');
+          setSupabaseUser(session.user);
+          await loadUserProfile(session.user);
+        } else {
+          console.log('ℹ️ Aucune session');
         }
       } catch (error) {
         console.error('❌ Erreur init auth:', error);
-        if (mounted) {
-          setInitialized(true);
-        }
+        // Continue même en cas d'erreur
       }
     };
 
+    // Initialisation en arrière-plan
     initAuth();
 
     // Écouter les changements
@@ -236,18 +234,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     signOut,
   };
 
-  // Attendre l'initialisation avant de rendre
-  if (!initialized) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center">
-        <div className="text-white text-center">
-          <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin mx-auto mb-4"></div>
-          <p>Initialisation...</p>
-        </div>
-      </div>
-    );
-  }
-
+  // Rendu immédiat sans écran d'initialisation
   return (
     <AuthContext.Provider value={value}>
       {children}

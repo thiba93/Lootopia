@@ -15,84 +15,85 @@ export const useTreasureHunts = () => {
     try {
       console.log('🔄 Chargement des chasses...');
       
-      // Timeout pour éviter les chargements infinis
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Timeout')), 10000)
-      );
-      
-      const fetchPromise = supabase
-        .from('treasure_hunts')
-        .select(`
-          *,
-          clues(*),
-          rewards(*)
-        `)
-        .eq('status', 'active')
-        .eq('is_public', true);
-      
-      const { data, error: fetchError } = await Promise.race([fetchPromise, timeoutPromise]) as any;
-      
-      if (fetchError || !data) {
-        console.warn('⚠️ Utilisation des données mockées:', fetchError?.message || 'Pas de données');
-        setTreasureHunts(mockTreasureHunts);
-        setLoading(false);
-        return;
+      // Vérifier si Supabase est disponible
+      if (import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY) {
+        try {
+          const { data, error: fetchError } = await supabase
+            .from('treasure_hunts')
+            .select(`
+              *,
+              clues(*),
+              rewards(*)
+            `)
+            .eq('status', 'active')
+            .eq('is_public', true);
+          
+          if (!fetchError && data && data.length > 0) {
+            console.log('✅ Chasses chargées depuis Supabase:', data.length);
+            
+            const formattedHunts: TreasureHunt[] = data.map((hunt: any) => ({
+              id: hunt.id,
+              title: hunt.title,
+              description: hunt.description,
+              difficulty: hunt.difficulty,
+              category: hunt.category,
+              location: {
+                lat: Number(hunt.location_lat) || 48.8566,
+                lng: Number(hunt.location_lng) || 2.3522,
+                address: hunt.location_address || 'Paris, France',
+              },
+              clues: hunt.clues?.map((clue: any) => ({
+                id: clue.id,
+                order: clue.order_number,
+                text: clue.text,
+                hint: clue.hint,
+                type: clue.type,
+                answer: clue.answer,
+                location: {
+                  lat: Number(clue.location_lat) || 48.8566,
+                  lng: Number(clue.location_lng) || 2.3522,
+                },
+                points: clue.points || 100,
+                radius: clue.radius || 50,
+              })) || [],
+              rewards: hunt.rewards?.map((reward: any) => ({
+                id: reward.id,
+                name: reward.name,
+                description: reward.description,
+                type: reward.type,
+                value: reward.value || 100,
+                icon: reward.icon || '🏆',
+                rarity: reward.rarity,
+              })) || [],
+              participants: hunt.participants_count || 0,
+              maxParticipants: hunt.max_participants || 50,
+              duration: hunt.duration || 60,
+              createdBy: hunt.created_by || 'system',
+              createdAt: hunt.created_at,
+              status: hunt.status,
+              image: hunt.image_url,
+              rating: Number(hunt.rating) || 0,
+              reviews: [],
+              tags: hunt.tags || [],
+              isPublic: hunt.is_public !== false,
+            }));
+
+            setTreasureHunts(formattedHunts);
+            setLoading(false);
+            return;
+          }
+        } catch (supabaseError) {
+          console.warn('⚠️ Erreur Supabase, utilisation des données mockées:', supabaseError);
+        }
       }
-
-      console.log('✅ Chasses chargées:', data.length);
       
-      const formattedHunts: TreasureHunt[] = data.map((hunt: any) => ({
-        id: hunt.id,
-        title: hunt.title,
-        description: hunt.description,
-        difficulty: hunt.difficulty,
-        category: hunt.category,
-        location: {
-          lat: Number(hunt.location_lat) || 48.8566,
-          lng: Number(hunt.location_lng) || 2.3522,
-          address: hunt.location_address || 'Paris, France',
-        },
-        clues: hunt.clues?.map((clue: any) => ({
-          id: clue.id,
-          order: clue.order_number,
-          text: clue.text,
-          hint: clue.hint,
-          type: clue.type,
-          answer: clue.answer,
-          location: {
-            lat: Number(clue.location_lat) || 48.8566,
-            lng: Number(clue.location_lng) || 2.3522,
-          },
-          points: clue.points || 100,
-          radius: clue.radius || 50,
-        })) || [],
-        rewards: hunt.rewards?.map((reward: any) => ({
-          id: reward.id,
-          name: reward.name,
-          description: reward.description,
-          type: reward.type,
-          value: reward.value || 100,
-          icon: reward.icon || '🏆',
-          rarity: reward.rarity,
-        })) || [],
-        participants: hunt.participants_count || 0,
-        maxParticipants: hunt.max_participants || 50,
-        duration: hunt.duration || 60,
-        createdBy: hunt.created_by || 'system',
-        createdAt: hunt.created_at,
-        status: hunt.status,
-        image: hunt.image_url,
-        rating: Number(hunt.rating) || 0,
-        reviews: [],
-        tags: hunt.tags || [],
-        isPublic: hunt.is_public !== false,
-      }));
-
-      setTreasureHunts(formattedHunts);
-    } catch (err: any) {
-      console.warn('⚠️ Erreur, utilisation des données mockées:', err.message);
+      // Fallback vers les données mockées
+      console.log('📦 Utilisation des données mockées');
       setTreasureHunts(mockTreasureHunts);
-      setError(null); // Ne pas afficher d'erreur, juste utiliser les données mockées
+    } catch (err: any) {
+      console.warn('⚠️ Erreur générale, utilisation des données mockées:', err.message);
+        setTreasureHunts(mockTreasureHunts);
+      setError(null);
     } finally {
       setLoading(false);
     }
