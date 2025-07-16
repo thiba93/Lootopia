@@ -166,7 +166,7 @@ export const useTreasureHunts = () => {
                                import.meta.env.VITE_SUPABASE_ANON_KEY &&
                                import.meta.env.VITE_SUPABASE_URL !== 'https://placeholder.supabase.co';
       
-      if (!hasSupabaseConfig) {
+      if (!hasSupabaseConfig || userId.startsWith('demo-')) {
         // Mode démo - créer une chasse locale
         const demoHunt: TreasureHunt = {
           id: `demo-${Date.now()}`,

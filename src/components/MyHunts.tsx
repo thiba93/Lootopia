@@ -123,7 +123,8 @@ const MyHunts: React.FC<MyHuntsProps> = ({ user, onBack, onJoinHunt }) => {
       setCompletedHunts(completed);
 
       // Charger les chasses créées (si organisateur)
-      if (user.role === 'organizer') {
+      // Charger les chasses créées pour tous les utilisateurs
+      try {
         const { data: created, error: createdError } = await supabase
           .from('treasure_hunts')
           .select(`
@@ -183,6 +184,11 @@ const MyHunts: React.FC<MyHuntsProps> = ({ user, onBack, onJoinHunt }) => {
 
           setCreatedHunts(formattedCreated);
         }
+      } catch (error) {
+        console.warn('Erreur chargement chasses créées:', error);
+        // Mode démo - afficher les chasses créées localement
+        const localCreatedHunts = treasureHunts.filter(hunt => hunt.createdBy === user.id);
+        setCreatedHunts(localCreatedHunts);
       }
     } catch (error) {
       console.error('Erreur chargement mes chasses:', error);
@@ -218,7 +224,7 @@ const MyHunts: React.FC<MyHuntsProps> = ({ user, onBack, onJoinHunt }) => {
   const tabs = [
     { id: 'active', label: 'En cours', count: activeHunts.length },
     { id: 'completed', label: 'Terminées', count: completedHunts.length },
-    ...(user.role === 'organizer' ? [{ id: 'created', label: 'Mes créations', count: createdHunts.length }] : [])
+    { id: 'created', label: 'Mes créations', count: createdHunts.length }
   ];
 
   return (
@@ -381,7 +387,7 @@ const MyHunts: React.FC<MyHuntsProps> = ({ user, onBack, onJoinHunt }) => {
             )}
 
             {/* Chasses créées (organisateur) */}
-            {activeTab === 'created' && user.role === 'organizer' && (
+            {activeTab === 'created' && (
               <div>
                 {createdHunts.length === 0 ? (
                   <div className="text-center py-12">

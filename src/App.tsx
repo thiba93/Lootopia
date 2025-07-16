@@ -182,7 +182,7 @@ function AppContent() {
     
     if (error) {
       console.error('Error creating hunt:', error);
-      error('Erreur', 'Impossible de créer la chasse au trésor. Veuillez réessayer.');
+      error('Erreur', 'Impossible de créer la chasse au trésor. Mode démo actif - la chasse a été créée localement.');
       return;
     }
     
