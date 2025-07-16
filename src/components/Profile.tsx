@@ -9,7 +9,7 @@ interface ProfileProps {
 
 const Profile: React.FC<ProfileProps> = ({ user, onBack }) => {
   const stats = [
-    { icon: Star, label: 'Points totaux', value: user.points, color: 'from-yellow-500 to-orange-500' },
+    { icon: Star, label: 'Points totaux', value: '350', color: 'from-yellow-500 to-orange-500' },
     { icon: Trophy, label: 'Niveau', value: user.level, color: 'from-purple-500 to-pink-500' },
     { icon: Award, label: 'Achievements', value: user.achievements.length, color: 'from-blue-500 to-cyan-500' },
     { icon: Calendar, label: 'Chasses créées', value: '0', color: 'from-green-500 to-emerald-500' }
@@ -82,7 +82,7 @@ const Profile: React.FC<ProfileProps> = ({ user, onBack }) => {
               <div className={`w-12 h-12 bg-gradient-to-r ${stat.color} rounded-xl flex items-center justify-center mx-auto mb-4`}>
                 <stat.icon className="w-6 h-6 text-white" />
               </div>
-              <div className="text-2xl font-bold text-white mb-2">350</div>
+              <div className="text-2xl font-bold text-white mb-2">{stats.value}</div>
               <div className="text-white/60 text-sm">{stat.label}</div>
             </div>
           ))}
