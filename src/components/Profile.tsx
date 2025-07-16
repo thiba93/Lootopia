@@ -118,7 +118,7 @@ const Profile: React.FC<ProfileProps> = ({ user, onBack }) => {
               <div key={index} className="flex items-center space-x-4 p-4 bg-white/5 rounded-xl border border-white/10">
                 <div className="text-2xl">{getActivityIcon(activity.type)}</div>
                 <div className="flex-1">
-                  <div className="text-white font-medium">{activity.title}</div>
+                  <div className="text-white font-medium">Les secrets d'Aulnay-sous-bois</div>
                   <div className="text-white/60 text-sm flex items-center space-x-4">
                     <div className="flex items-center space-x-1">
                       <Calendar className="w-3 h-3" />
