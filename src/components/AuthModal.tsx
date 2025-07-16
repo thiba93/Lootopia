@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, Mail, Lock, User, Eye, EyeOff, AlertCircle, CheckCircle, Loader } from 'lucide-react';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../contexts/AuthContext';
 
 interface AuthModalProps {
   onClose: () => void;
@@ -8,6 +8,7 @@ interface AuthModalProps {
 
 const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
   const [isLogin, setIsLogin] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
@@ -18,7 +19,18 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
     confirmPassword: ''
   });
   
-  const { signIn, signUp, loading } = useAuth();
+  const { signIn, signUp } = useAuth();
+
+  const resetForm = () => {
+    setFormData({
+      email: '',
+      password: '',
+      username: '',
+      confirmPassword: ''
+    });
+    setError(null);
+    setSuccess(null);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,52 +38,57 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
     
     setError(null);
     setSuccess(null);
-    
-    // Validation
-    if (!formData.email || !formData.password) {
-      setError('Veuillez remplir tous les champs obligatoires');
-      return;
-    }
-
-    if (!isLogin) {
-      if (!formData.username || formData.username.length < 3) {
-        setError('Le nom d\'utilisateur doit contenir au moins 3 caractères');
-        return;
-      }
-      
-      if (formData.password.length < 6) {
-        setError('Le mot de passe doit contenir au moins 6 caractères');
-        return;
-      }
-      
-      if (formData.password !== formData.confirmPassword) {
-        setError('Les mots de passe ne correspondent pas');
-        return;
-      }
-    }
+    setLoading(true);
     
     try {
+      // Validation
+      if (!formData.email || !formData.password) {
+        throw new Error('Veuillez remplir tous les champs obligatoires');
+      }
+
+      if (!isLogin) {
+        if (!formData.username || formData.username.length < 3) {
+          throw new Error('Le nom d\'utilisateur doit contenir au moins 3 caractères');
+        }
+        
+        if (formData.password.length < 6) {
+          throw new Error('Le mot de passe doit contenir au moins 6 caractères');
+        }
+        
+        if (formData.password !== formData.confirmPassword) {
+          throw new Error('Les mots de passe ne correspondent pas');
+        }
+      }
+      
       if (isLogin) {
+        // Connexion
         const result = await signIn(formData.email, formData.password);
         
         if (result.success) {
           setSuccess('Connexion réussie !');
-          setTimeout(() => onClose(), 1000);
+          setTimeout(() => {
+            onClose();
+          }, 1000);
         } else {
           setError(result.error || 'Erreur de connexion');
         }
       } else {
+        // Inscription
         const result = await signUp(formData.email, formData.password, formData.username);
         
         if (result.success) {
-          setSuccess('Inscription réussie ! Bienvenue sur Lootopia !');
-          setTimeout(() => onClose(), 1500);
+          setSuccess('Inscription réussie ! Vous êtes maintenant connecté.');
+          setTimeout(() => {
+            onClose();
+          }, 1500);
         } else {
           setError(result.error || 'Erreur d\'inscription');
         }
       }
     } catch (err: any) {
       setError(err.message || 'Une erreur inattendue est survenue');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -86,16 +103,8 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
 
   const handleModeSwitch = () => {
     if (loading) return;
-    
     setIsLogin(!isLogin);
-    setError(null);
-    setSuccess(null);
-    setFormData({
-      email: '',
-      password: '',
-      username: '',
-      confirmPassword: ''
-    });
+    resetForm();
   };
 
   return (
@@ -228,7 +237,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
 
         <div className="mt-4 text-center">
           <p className="text-white/40 text-xs">
-            Connecté à Supabase - Base de données réelle
+            Authentification sécurisée avec Supabase
           </p>
         </div>
       </div>

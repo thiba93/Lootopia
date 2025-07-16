@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Compass, Star, Bell } from 'lucide-react';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import HomePage from './components/HomePage';
 import Dashboard from './components/Dashboard';
 import ImprovedTreasureHuntMap from './components/ImprovedTreasureHuntMap';
@@ -12,14 +13,13 @@ import LoadingSpinner from './components/LoadingSpinner';
 import ErrorBoundary from './components/ErrorBoundary';
 import Toast from './components/Toast';
 import { TreasureHunt, Notification, Achievement } from './types';
-import { useAuth } from './hooks/useAuth';
 import { useTreasureHunts } from './hooks/useTreasureHunts';
 import { useToast } from './hooks/useToast';
 import { supabase } from './lib/supabase';
 
 type Page = 'home' | 'dashboard' | 'map' | 'create' | 'profile';
 
-function App() {
+function AppContent() {
   const [currentPage, setCurrentPage] = useState<Page>('home');
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [selectedHunt, setSelectedHunt] = useState<TreasureHunt | null>(null);
@@ -71,10 +71,12 @@ function App() {
     }
   };
 
-  const handleLogout = () => {
-    signOut();
+  const handleLogout = async () => {
+    await signOut();
     setCurrentPage('home');
     setNotifications([]);
+    setSelectedHunt(null);
+    success('Déconnexion', 'Vous avez été déconnecté avec succès');
   };
 
   const addNotification = async (notification: Omit<Notification, 'id' | 'createdAt'>) => {
@@ -138,14 +140,12 @@ function App() {
   };
 
   const clearAllNotifications = () => {
-    // For now, just clear locally. In a real app, you'd want to mark all as read in the database
     setNotifications([]);
   };
 
   const handleAchievementUnlocked = (achievements: Achievement[]) => {
     if (!user) return;
     
-    // Add notifications for achievements
     achievements.forEach(achievement => {
       addNotification({
         userId: user.id,
@@ -260,95 +260,110 @@ function App() {
 
   const unreadNotificationCount = notifications.filter(n => !n.isRead && n.userId === user?.id).length;
 
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center">
+        <LoadingSpinner message="Chargement de l'authentification..." />
+      </div>
+    );
+  }
 
   return (
-    <ErrorBoundary>
-      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
-        {/* Navigation */}
-        <nav className="bg-black/20 backdrop-blur-md border-b border-white/10 sticky top-0 z-40">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-            <div className="flex justify-between items-center h-16">
-              <div 
-                className="flex items-center space-x-2 cursor-pointer hover:opacity-80 transition-opacity"
-                onClick={() => setCurrentPage('home')}
-              >
-                <div className="w-8 h-8 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-lg flex items-center justify-center">
-                  <Compass className="w-5 h-5 text-white" />
-                </div>
-                <span className="text-lg sm:text-xl font-bold text-white">Lootopia</span>
+    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
+      {/* Navigation */}
+      <nav className="bg-black/20 backdrop-blur-md border-b border-white/10 sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+          <div className="flex justify-between items-center h-16">
+            <div 
+              className="flex items-center space-x-2 cursor-pointer hover:opacity-80 transition-opacity"
+              onClick={() => setCurrentPage('home')}
+            >
+              <div className="w-8 h-8 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-lg flex items-center justify-center">
+                <Compass className="w-5 h-5 text-white" />
               </div>
+              <span className="text-lg sm:text-xl font-bold text-white">Lootopia</span>
+            </div>
 
-              <ResponsiveNavigation
-                currentPage={currentPage}
-                isAuthenticated={isAuthenticated}
-                user={user}
-                selectedHunt={selectedHunt}
-                onNavigate={setCurrentPage}
-                onShowAuth={() => setShowAuthModal(true)}
-                onLogout={handleLogout}
-                notificationCount={unreadNotificationCount}
-              />
+            <ResponsiveNavigation
+              currentPage={currentPage}
+              isAuthenticated={isAuthenticated}
+              user={user}
+              selectedHunt={selectedHunt}
+              onNavigate={setCurrentPage}
+              onShowAuth={() => setShowAuthModal(true)}
+              onLogout={handleLogout}
+              notificationCount={unreadNotificationCount}
+            />
 
-              <div className="hidden md:flex items-center space-x-4">
-                {isAuthenticated ? (
-                  <>
-                    <div className="flex items-center space-x-2 bg-white/10 rounded-full px-3 py-1">
-                      <Star className="w-4 h-4 text-yellow-400" />
-                      <span className="text-yellow-400 font-semibold text-sm">{user?.points || 0}</span>
-                    </div>
-                    <div className="relative">
-                      <NotificationSystem
-                        notifications={notifications.filter(n => n.userId === user?.id)}
-                        onMarkAsRead={markNotificationAsRead}
-                        onClearAll={clearAllNotifications}
-                      />
-                      {unreadNotificationCount > 0 && (
-                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => setCurrentPage('profile')}
-                      className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white font-semibold text-sm hover:scale-110 transition-transform"
-                    >
-                      {user && user.username ? user.username.charAt(0).toUpperCase() : 'U'}
-                    </button>
-                    <button
-                      onClick={handleLogout}
-                      className="text-white/70 hover:text-white transition-colors text-sm hover:bg-white/10 px-3 py-1 rounded-lg"
-                    >
-                      Déconnexion
-                    </button>
-                  </>
-                ) : (
+            <div className="hidden md:flex items-center space-x-4">
+              {isAuthenticated ? (
+                <>
+                  <div className="flex items-center space-x-2 bg-white/10 rounded-full px-3 py-1">
+                    <Star className="w-4 h-4 text-yellow-400" />
+                    <span className="text-yellow-400 font-semibold text-sm">{user?.points || 0}</span>
+                  </div>
+                  <div className="relative">
+                    <NotificationSystem
+                      notifications={notifications.filter(n => n.userId === user?.id)}
+                      onMarkAsRead={markNotificationAsRead}
+                      onClearAll={clearAllNotifications}
+                    />
+                    {unreadNotificationCount > 0 && (
+                      <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+                    )}
+                  </div>
                   <button
-                    onClick={() => setShowAuthModal(true)}
-                    className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-4 sm:px-6 py-2 rounded-lg font-semibold hover:from-purple-600 hover:to-pink-600 transition-all text-sm sm:text-base transform hover:scale-105"
+                    onClick={() => setCurrentPage('profile')}
+                    className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white font-semibold text-sm hover:scale-110 transition-transform"
                   >
-                    Connexion
+                    {user && user.username ? user.username.charAt(0).toUpperCase() : 'U'}
                   </button>
-                )}
-              </div>
+                  <button
+                    onClick={handleLogout}
+                    className="text-white/70 hover:text-white transition-colors text-sm hover:bg-white/10 px-3 py-1 rounded-lg"
+                  >
+                    Déconnexion
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => setShowAuthModal(true)}
+                  className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-4 sm:px-6 py-2 rounded-lg font-semibold hover:from-purple-600 hover:to-pink-600 transition-all text-sm sm:text-base transform hover:scale-105"
+                >
+                  Connexion
+                </button>
+              )}
             </div>
           </div>
-        </nav>
+        </div>
+      </nav>
 
-        {/* Main Content */}
-        <main className="min-h-screen">
-          {renderCurrentPage()}
-        </main>
+      {/* Main Content */}
+      <main className="min-h-screen">
+        {renderCurrentPage()}
+      </main>
 
-        {/* Auth Modal */}
-        {showAuthModal && (
-          <AuthModal
-            onClose={() => setShowAuthModal(false)}
-          />
-        )}
+      {/* Auth Modal */}
+      {showAuthModal && (
+        <AuthModal
+          onClose={() => setShowAuthModal(false)}
+        />
+      )}
 
-        {/* Toast Notifications */}
-        {toasts.map(toast => (
-          <Toast key={toast.id} {...toast} />
-        ))}
-      </div>
+      {/* Toast Notifications */}
+      {toasts.map(toast => (
+        <Toast key={toast.id} {...toast} />
+      ))}
+    </div>
+  );
+}
+
+function App() {
+  return (
+    <ErrorBoundary>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
     </ErrorBoundary>
   );
 }
