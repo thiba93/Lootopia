@@ -68,22 +68,39 @@ const CreateHunt: React.FC<CreateHuntProps> = ({ onCreateHunt, onBack }) => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Validation des champs obligatoires
+    if (!huntData.title || !huntData.description || !huntData.category || !huntData.location.address) {
+      alert('Veuillez remplir tous les champs obligatoires');
+      return;
+    }
+    
+    if (clues.length === 0) {
+      alert('Veuillez ajouter au moins un indice');
+      return;
+    }
+    
     const hunt: Omit<TreasureHunt, 'id' | 'createdAt'> = {
       ...huntData,
       clues: clues.map((clue, index) => ({
         ...clue,
         id: `clue-${index + 1}`,
-        order: index + 1
+        order: index + 1,
+        radius: clue.radius || 50
       })),
       rewards: rewards.map((reward, index) => ({
         ...reward,
-        id: `reward-${index + 1}`
+        id: `reward-${index + 1}`,
+        rarity: reward.rarity || 'common'
       })),
       participants: 0,
       createdBy: 'user',
-      status: 'active'
+      status: 'active',
+      rating: 0,
+      reviews: [],
+      isPublic: true
     };
 
+    console.log('🔄 Soumission chasse:', hunt);
     onCreateHunt(hunt);
   };
 
