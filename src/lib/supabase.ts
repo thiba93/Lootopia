@@ -5,14 +5,27 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables');
+  console.error('Missing Supabase environment variables');
+  console.error('VITE_SUPABASE_URL:', supabaseUrl);
+  console.error('VITE_SUPABASE_ANON_KEY:', supabaseAnonKey ? 'Present' : 'Missing');
 }
 
-export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient<Database>(
+  supabaseUrl || '',
+  supabaseAnonKey || '',
+  {
+    auth: {
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: false
+    }
+  }
+);
 
 // Helper functions for authentication
 export const auth = {
   signUp: async (email: string, password: string, username: string) => {
+    try {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -23,24 +36,43 @@ export const auth = {
       },
     });
     return { data, error };
+    } catch (error: any) {
+      console.error('SignUp error:', error);
+      return { data: null, error };
+    }
   },
 
   signIn: async (email: string, password: string) => {
+    try {
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
     return { data, error };
+    } catch (error: any) {
+      console.error('SignIn error:', error);
+      return { data: null, error };
+    }
   },
 
   signOut: async () => {
+    try {
     const { error } = await supabase.auth.signOut();
     return { error };
+    } catch (error: any) {
+      console.error('SignOut error:', error);
+      return { error };
+    }
   },
 
   getCurrentUser: async () => {
+    try {
     const { data: { user }, error } = await supabase.auth.getUser();
     return { user, error };
+    } catch (error: any) {
+      console.error('GetCurrentUser error:', error);
+      return { user: null, error };
+    }
   },
 
   onAuthStateChange: (callback: (event: string, session: any) => void) => {

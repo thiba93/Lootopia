@@ -15,7 +15,10 @@ export const useTreasureHunts = () => {
       const { data, error: fetchError } = await db.getTreasureHunts();
       
       if (fetchError) {
-        throw fetchError;
+        console.error('Error fetching treasure hunts:', fetchError);
+        setError(fetchError.message || 'Failed to load treasure hunts');
+        setTreasureHunts([]);
+        return;
       }
 
       if (data) {
@@ -26,8 +29,8 @@ export const useTreasureHunts = () => {
           difficulty: hunt.difficulty,
           category: hunt.category,
           location: {
-            lat: hunt.location_lat,
-            lng: hunt.location_lng,
+            lat: Number(hunt.location_lat) || 0,
+            lng: Number(hunt.location_lng) || 0,
             address: hunt.location_address,
           },
           clues: hunt.clues?.map(clue => ({
@@ -38,8 +41,8 @@ export const useTreasureHunts = () => {
             type: clue.type,
             answer: clue.answer,
             location: {
-              lat: clue.location_lat,
-              lng: clue.location_lng,
+              lat: Number(clue.location_lat) || 0,
+              lng: Number(clue.location_lng) || 0,
             },
             points: clue.points,
             radius: clue.radius,
@@ -60,24 +63,32 @@ export const useTreasureHunts = () => {
           createdAt: hunt.created_at,
           status: hunt.status,
           image: hunt.image_url,
-          rating: hunt.rating,
+          rating: Number(hunt.rating) || 0,
           reviews: [], // Reviews will be implemented later
           tags: hunt.tags || [],
           isPublic: hunt.is_public,
         }));
 
         setTreasureHunts(formattedHunts);
+      } else {
+        setTreasureHunts([]);
       }
     } catch (err: any) {
       console.error('Error loading treasure hunts:', err);
       setError(err.message || 'Failed to load treasure hunts');
+      setTreasureHunts([]);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadTreasureHunts();
+    // Add a small delay to prevent immediate loading issues
+    const timer = setTimeout(() => {
+      loadTreasureHunts();
+    }, 100);
+
+    return () => clearTimeout(timer);
   }, []);
 
   const createTreasureHunt = async (huntData: any, userId: string) => {

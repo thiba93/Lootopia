@@ -9,34 +9,61 @@ export const useAuth = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
-    // Get initial session
-    const getInitialSession = async () => {
+    let mounted = true;
+
+    const initializeAuth = async () => {
       try {
-        const { user: supabaseUser } = await auth.getCurrentUser();
-        if (supabaseUser) {
+        // Get initial session
+        const { user: supabaseUser, error } = await auth.getCurrentUser();
+        
+        if (error) {
+          console.error('Error getting current user:', error);
+          if (mounted) {
+            setLoading(false);
+          }
+          return;
+        }
+
+        if (supabaseUser && mounted) {
           await loadUserProfile(supabaseUser);
+        } else if (mounted) {
+          setLoading(false);
         }
       } catch (error) {
-        console.error('Error getting initial session:', error);
-      } finally {
-        setLoading(false);
+        console.error('Error initializing auth:', error);
+        if (mounted) {
+          setLoading(false);
+        }
       }
     };
 
-    getInitialSession();
+    // Initialize auth
+    initializeAuth();
 
     // Listen for auth changes
     const { data: { subscription } } = auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session?.user) {
-        await loadUserProfile(session.user);
-      } else if (event === 'SIGNED_OUT') {
-        setUser(null);
-        setIsAuthenticated(false);
+      if (!mounted) return;
+
+      try {
+        if (event === 'SIGNED_IN' && session?.user) {
+          await loadUserProfile(session.user);
+        } else if (event === 'SIGNED_OUT') {
+          setUser(null);
+          setIsAuthenticated(false);
+          setLoading(false);
+        } else {
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error('Error in auth state change:', error);
+        setLoading(false);
       }
-      setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const loadUserProfile = async (supabaseUser: SupabaseUser) => {
@@ -45,28 +72,33 @@ export const useAuth = () => {
       
       if (error) {
         console.error('Error loading user profile:', error);
+        setLoading(false);
         return;
       }
 
       if (profile) {
         // Get user achievements
-        const { data: userAchievements } = await db.getUserAchievements(supabaseUser.id);
+        const { data: userAchievements, error: achievementsError } = await db.getUserAchievements(supabaseUser.id);
+        
+        if (achievementsError) {
+          console.error('Error loading achievements:', achievementsError);
+        }
         
         const userData: User = {
           id: profile.id,
           username: profile.username,
           email: profile.email,
-          points: profile.points,
-          level: profile.level,
+          points: profile.points || 0,
+          level: profile.level || 1,
           avatar: profile.avatar_url,
           createdAt: profile.created_at,
           achievements: userAchievements?.map(ua => ({
-            id: ua.achievements.id,
-            name: ua.achievements.name,
-            description: ua.achievements.description,
-            icon: ua.achievements.icon,
-            points: ua.achievements.points,
-            rarity: ua.achievements.rarity,
+            id: ua.achievements?.id || '',
+            name: ua.achievements?.name || '',
+            description: ua.achievements?.description || '',
+            icon: ua.achievements?.icon || '🏆',
+            points: ua.achievements?.points || 0,
+            rarity: ua.achievements?.rarity || 'common',
             unlockedAt: ua.unlocked_at,
           })) || [],
           completedHunts: [], // Will be loaded separately if needed
@@ -75,9 +107,15 @@ export const useAuth = () => {
 
         setUser(userData);
         setIsAuthenticated(true);
+      } else {
+        // Profile doesn't exist, user might need to complete registration
+        setUser(null);
+        setIsAuthenticated(false);
       }
     } catch (error) {
       console.error('Error loading user profile:', error);
+    } finally {
+      setLoading(false);
     }
   };
 

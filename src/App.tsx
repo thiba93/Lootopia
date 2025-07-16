@@ -24,6 +24,17 @@ function App() {
   const { user, isAuthenticated, loading: authLoading, signOut } = useAuth();
   const { treasureHunts, loading: huntsLoading, createTreasureHunt } = useTreasureHunts();
 
+  // Add timeout for loading states
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (authLoading) {
+        console.warn('Auth loading timeout - there might be a connection issue');
+      }
+    }, 10000); // 10 second timeout
+
+    return () => clearTimeout(timeout);
+  }, [authLoading]);
+
   useEffect(() => {
     // Load notifications when user is authenticated
     if (isAuthenticated && user) {
