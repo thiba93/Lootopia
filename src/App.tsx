@@ -27,13 +27,28 @@ function App() {
     // Simulate checking for existing session
     const savedUser = localStorage.getItem('lootopia_user');
     if (savedUser) {
-      setUser(JSON.parse(savedUser));
-      setIsAuthenticated(true);
-      
-      // Load notifications
-      const savedNotifications = localStorage.getItem('lootopia_notifications');
-      if (savedNotifications) {
-        setNotifications(JSON.parse(savedNotifications));
+      try {
+        const parsedUser = JSON.parse(savedUser);
+        if (parsedUser && typeof parsedUser === 'object' && parsedUser.username) {
+          setUser(parsedUser);
+          setIsAuthenticated(true);
+          
+          // Load notifications
+          const savedNotifications = localStorage.getItem('lootopia_notifications');
+          if (savedNotifications) {
+            setNotifications(JSON.parse(savedNotifications));
+          }
+        } else {
+          // Invalid user data, clean up
+          localStorage.removeItem('lootopia_user');
+          setUser(null);
+          setIsAuthenticated(false);
+        }
+      } catch (error) {
+        // Invalid JSON, clean up
+        localStorage.removeItem('lootopia_user');
+        setUser(null);
+        setIsAuthenticated(false);
       }
     }
   }, []);
@@ -251,7 +266,7 @@ function App() {
                     onClick={() => setCurrentPage('profile')}
                     className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white font-semibold text-sm"
                   >
-                    {user?.username.charAt(0).toUpperCase()}
+                    {user && user.username ? user.username.charAt(0).toUpperCase() : 'U'}
                   </button>
                   <button
                     onClick={handleLogout}
