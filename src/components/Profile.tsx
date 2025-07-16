@@ -114,13 +114,15 @@ const Profile: React.FC<ProfileProps> = ({ user, onBack }) => {
         <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10">
           <h3 className="text-xl font-semibold text-white mb-6">Activité récente</h3>
           <div className="space-y-4">
+            {recentActivity.map((activity, index) => (
               <div className="flex items-center space-x-4 p-4 bg-white/5 rounded-xl border border-white/10">
+                <div className="text-2xl">{getActivityIcon(activity.type)}</div>
                 <div className="flex-1">
-                  <div className="text-white font-medium">Les secrets d'Aulnay-sous-bois</div>
+                  <div className="text-white font-medium">{activity.title}</div>
                   <div className="text-white/60 text-sm flex items-center space-x-4">
                     <div className="flex items-center space-x-1">
                       <Calendar className="w-3 h-3" />
-                      <span>16/07/2025</span>
+                      <span>{new Date(activity.date).toLocaleDateString('fr-FR')}</span>
                     </div>
                     {activity.points > 0 && (
                       <div className="flex items-center space-x-1 text-yellow-400">
