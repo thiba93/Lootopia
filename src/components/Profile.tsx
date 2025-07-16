@@ -122,7 +122,7 @@ const Profile: React.FC<ProfileProps> = ({ user, onBack }) => {
                   <div className="text-white/60 text-sm flex items-center space-x-4">
                     <div className="flex items-center space-x-1">
                       <Calendar className="w-3 h-3" />
-                      <span>{new Date(activity.date).toLocaleDateString('fr-FR')}</span>
+                      <span>16/07/2025</span>
                     </div>
                     {activity.points > 0 && (
                       <div className="flex items-center space-x-1 text-yellow-400">
