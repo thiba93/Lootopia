@@ -6,21 +6,28 @@ export const useGameSession = (hunt: TreasureHunt, user: User) => {
   const [session, setSession] = useState<GameSession | null>(null);
   const [currentClue, setCurrentClue] = useState<Clue | null>(null);
   const [timeElapsed, setTimeElapsed] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   // Initialize or load existing session
   useEffect(() => {
     let mounted = true;
+    let timeoutId: NodeJS.Timeout;
     
     const loadOrCreateSession = async () => {
-      if (!hunt?.id || !user?.id) {
-        setLoading(false);
-        return;
-      }
+      if (!hunt?.id || !user?.id || !mounted) return;
 
+      setLoading(true);
+      
       try {
-        setLoading(true);
         console.log('🔄 Chargement session pour:', hunt.title);
+        
+        // Timeout pour éviter les chargements infinis
+        timeoutId = setTimeout(() => {
+          if (mounted) {
+            console.warn('⚠️ Timeout session, création par défaut');
+            createDefaultSession();
+          }
+        }, 8000);
         
         // Try to get existing active session
         const { data: existingSession, error } = await supabase
@@ -32,10 +39,10 @@ export const useGameSession = (hunt: TreasureHunt, user: User) => {
           .single();
         
         if (!mounted) return;
+        clearTimeout(timeoutId);
 
         if (existingSession && !error) {
           console.log('✅ Session existante trouvée');
-          // Load existing session
           const sessionData: GameSession = {
             id: existingSession.id,
             huntId: existingSession.hunt_id,
@@ -55,55 +62,13 @@ export const useGameSession = (hunt: TreasureHunt, user: User) => {
           setTimeElapsed(sessionData.timeSpent);
         } else {
           console.log('🆕 Création nouvelle session');
-          // Create new session
-          const newSessionData = {
-            hunt_id: hunt.id,
-            user_id: user.id,
-            current_clue_index: 0,
-            score: 0,
-            status: 'active' as const,
-            completed_clues: [],
-            time_spent: 0,
-            hints_used: 0,
-          };
-          
-          const { data: createdSession, error: createError } = await supabase
-            .from('game_sessions')
-            .insert(newSessionData)
-            .select()
-            .single();
-          
-          if (!mounted) return;
-          
-          if (createError) {
-            console.error('❌ Erreur création session:', createError);
-            setLoading(false);
-            return;
-          }
-          
-          if (createdSession) {
-            const sessionData: GameSession = {
-              id: createdSession.id,
-              huntId: createdSession.hunt_id,
-              userId: createdSession.user_id,
-              startedAt: createdSession.started_at,
-              completedAt: createdSession.completed_at,
-              currentClueIndex: createdSession.current_clue_index,
-              score: createdSession.score,
-              status: createdSession.status,
-              completedClues: createdSession.completed_clues || [],
-              timeSpent: createdSession.time_spent,
-              hintsUsed: createdSession.hints_used,
-            };
-            
-            setSession(sessionData);
-            setCurrentClue(hunt.clues[0] || null);
-            setTimeElapsed(0);
-            console.log('✅ Session créée:', sessionData.id);
-          }
+          await createNewSession();
         }
       } catch (error) {
         console.error('❌ Erreur session:', error);
+        if (mounted) {
+          createDefaultSession();
+        }
       } finally {
         if (mounted) {
           setLoading(false);
@@ -111,10 +76,87 @@ export const useGameSession = (hunt: TreasureHunt, user: User) => {
       }
     };
 
+    const createNewSession = async () => {
+      try {
+        const newSessionData = {
+          hunt_id: hunt.id,
+          user_id: user.id,
+          current_clue_index: 0,
+          score: 0,
+          status: 'active' as const,
+          completed_clues: [],
+          time_spent: 0,
+          hints_used: 0,
+        };
+        
+        const { data: createdSession, error: createError } = await supabase
+          .from('game_sessions')
+          .insert(newSessionData)
+          .select()
+          .single();
+        
+        if (!mounted) return;
+        
+        if (createError) {
+          console.error('❌ Erreur création session:', createError);
+          createDefaultSession();
+          return;
+        }
+        
+        if (createdSession) {
+          const sessionData: GameSession = {
+            id: createdSession.id,
+            huntId: createdSession.hunt_id,
+            userId: createdSession.user_id,
+            startedAt: createdSession.started_at,
+            completedAt: createdSession.completed_at,
+            currentClueIndex: createdSession.current_clue_index,
+            score: createdSession.score,
+            status: createdSession.status,
+            completedClues: createdSession.completed_clues || [],
+            timeSpent: createdSession.time_spent,
+            hintsUsed: createdSession.hints_used,
+          };
+          
+          setSession(sessionData);
+          setCurrentClue(hunt.clues[0] || null);
+          setTimeElapsed(0);
+          console.log('✅ Session créée:', sessionData.id);
+        }
+      } catch (error) {
+        console.error('❌ Erreur création session:', error);
+        if (mounted) {
+          createDefaultSession();
+        }
+      }
+    };
+
+    const createDefaultSession = () => {
+      // Session par défaut en cas d'échec
+      const defaultSession: GameSession = {
+        id: `temp-${Date.now()}`,
+        huntId: hunt.id,
+        userId: user.id,
+        startedAt: new Date().toISOString(),
+        currentClueIndex: 0,
+        score: 0,
+        status: 'active',
+        completedClues: [],
+        timeSpent: 0,
+        hintsUsed: 0,
+      };
+      
+      setSession(defaultSession);
+      setCurrentClue(hunt.clues[0] || null);
+      setTimeElapsed(0);
+      console.log('⚠️ Session par défaut créée');
+    };
+
     loadOrCreateSession();
     
     return () => {
       mounted = false;
+      if (timeoutId) clearTimeout(timeoutId);
     };
   }, [hunt?.id, user?.id]);
 
@@ -128,30 +170,6 @@ export const useGameSession = (hunt: TreasureHunt, user: User) => {
 
     return () => clearInterval(timer);
   }, [session]);
-
-  // Update session in database periodically
-  useEffect(() => {
-    if (!session || session.status !== 'active') return;
-
-    const updateInterval = setInterval(async () => {
-      try {
-        await supabase
-          .from('game_sessions')
-          .update({
-            time_spent: timeElapsed,
-            current_clue_index: session.currentClueIndex,
-            score: session.score,
-            completed_clues: session.completedClues,
-            hints_used: session.hintsUsed,
-          })
-          .eq('id', session.id);
-      } catch (error) {
-        console.error('❌ Erreur mise à jour session:', error);
-      }
-    }, 10000); // Update every 10 seconds
-
-    return () => clearInterval(updateInterval);
-  }, [session, timeElapsed]);
 
   const completeClue = useCallback(async (clueId: string, points: number) => {
     if (!currentClue || !session) return;
@@ -173,7 +191,12 @@ export const useGameSession = (hunt: TreasureHunt, user: User) => {
     setSession(updatedSession);
     setCurrentClue(hunt.clues[updatedSession.currentClueIndex] || null);
     
-    // Update in database
+    // Update in database (non-blocking)
+    if (session.id.startsWith('temp-')) {
+      console.log('⚠️ Session temporaire, pas de sauvegarde');
+      return;
+    }
+    
     try {
       await supabase
         .from('game_sessions')
@@ -199,13 +222,15 @@ export const useGameSession = (hunt: TreasureHunt, user: User) => {
     const updatedSession: GameSession = {
       ...session,
       hintsUsed: session.hintsUsed + 1,
-      score: Math.max(0, session.score - 10), // Penalty for using hint
+      score: Math.max(0, session.score - 10),
       timeSpent: timeElapsed,
     };
 
     setSession(updatedSession);
     
-    // Update in database
+    // Update in database (non-blocking)
+    if (session.id.startsWith('temp-')) return;
+    
     try {
       await supabase
         .from('game_sessions')
@@ -233,7 +258,9 @@ export const useGameSession = (hunt: TreasureHunt, user: User) => {
 
     setSession(updatedSession);
     
-    // Update in database
+    // Update in database (non-blocking)
+    if (session.id.startsWith('temp-')) return;
+    
     try {
       await supabase
         .from('game_sessions')

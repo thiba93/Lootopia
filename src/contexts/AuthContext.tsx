@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User as SupabaseUser } from '@supabase/supabase-js';
-import { supabase, authService } from '../lib/supabase';
+import { supabase } from '../lib/supabase';
 import { User } from '../types';
 
 interface AuthContextType {
@@ -31,85 +31,119 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [supabaseUser, setSupabaseUser] = useState<SupabaseUser | null>(null);
   const [loading, setLoading] = useState(false);
+  const [initialized, setInitialized] = useState(false);
 
   const isAuthenticated = !!user && !!supabaseUser;
 
   // Charger le profil utilisateur
   const loadUserProfile = async (supabaseUser: SupabaseUser) => {
     try {
-      const result = await authService.getUserProfile(supabaseUser.id);
+      console.log('📝 Chargement profil pour:', supabaseUser.email);
       
-      if (result.success && result.profile) {
+      const { data: profile, error } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('id', supabaseUser.id)
+        .single();
+      
+      if (error) {
+        console.warn('⚠️ Profil non trouvé, création...', error);
+        
+        // Créer le profil s'il n'existe pas
+        const { data: newProfile, error: createError } = await supabase
+          .from('user_profiles')
+          .insert({
+            id: supabaseUser.id,
+            username: supabaseUser.user_metadata?.username || supabaseUser.email?.split('@')[0] || 'User',
+            email: supabaseUser.email || '',
+            points: 0,
+            level: 1
+          })
+          .select()
+          .single();
+        
+        if (createError) {
+          console.error('❌ Erreur création profil:', createError);
+          return;
+        }
+        
+        if (newProfile) {
+          const userData: User = {
+            id: newProfile.id,
+            username: newProfile.username,
+            email: newProfile.email,
+            points: newProfile.points || 0,
+            level: newProfile.level || 1,
+            avatar: newProfile.avatar_url,
+            createdAt: newProfile.created_at,
+            achievements: [],
+            completedHunts: [],
+            createdHunts: [],
+          };
+          
+          setUser(userData);
+          console.log('✅ Profil créé:', userData.username);
+        }
+      } else if (profile) {
         const userData: User = {
-          id: result.profile.id,
-          username: result.profile.username,
-          email: result.profile.email,
-          points: result.profile.points || 0,
-          level: result.profile.level || 1,
-          avatar: result.profile.avatar_url,
-          createdAt: result.profile.created_at,
+          id: profile.id,
+          username: profile.username,
+          email: profile.email,
+          points: profile.points || 0,
+          level: profile.level || 1,
+          avatar: profile.avatar_url,
+          createdAt: profile.created_at,
           achievements: [],
           completedHunts: [],
           createdHunts: [],
         };
         
         setUser(userData);
-        console.log('✅ Profil utilisateur chargé:', userData.username);
-      } else {
-        console.error('❌ Erreur chargement profil:', result.error);
-        setUser(null);
+        console.log('✅ Profil chargé:', userData.username);
       }
     } catch (error) {
       console.error('❌ Erreur chargement profil:', error);
-      setUser(null);
     }
   };
 
-  // Initialisation
+  // Initialisation simple
   useEffect(() => {
     let mounted = true;
 
-    const initializeAuth = async () => {
+    const initAuth = async () => {
       try {
-        console.log('🔄 Initialisation authentification...');
-        
-        // Vérifier la session existante
-        const sessionResult = await authService.getCurrentSession();
+        const { data: { session } } = await supabase.auth.getSession();
         
         if (mounted) {
-          if (sessionResult.success && sessionResult.session?.user) {
+          if (session?.user) {
             console.log('✅ Session existante trouvée');
-            setSupabaseUser(sessionResult.session.user);
-            await loadUserProfile(sessionResult.session.user);
+            setSupabaseUser(session.user);
+            await loadUserProfile(session.user);
           } else {
-            console.log('ℹ️ Aucune session existante');
-            setUser(null);
-            setSupabaseUser(null);
+            console.log('ℹ️ Aucune session');
           }
+          setInitialized(true);
         }
       } catch (error) {
-        console.error('❌ Erreur initialisation:', error);
+        console.error('❌ Erreur init auth:', error);
         if (mounted) {
-          setUser(null);
-          setSupabaseUser(null);
+          setInitialized(true);
         }
       }
     };
 
-    initializeAuth();
+    initAuth();
 
-    // Écouter les changements d'authentification
+    // Écouter les changements
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!mounted) return;
 
-      console.log('🔔 Événement auth:', event);
+      console.log('🔔 Auth event:', event);
 
       if (event === 'SIGNED_IN' && session?.user) {
-        console.log('✅ Utilisateur connecté');
         setSupabaseUser(session.user);
         await loadUserProfile(session.user);
       } else if (event === 'SIGNED_OUT') {
-        console.log('👋 Utilisateur déconnecté');
         setUser(null);
         setSupabaseUser(null);
       }
@@ -123,39 +157,54 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Inscription
   const signUp = async (email: string, password: string, username: string) => {
+    setLoading(true);
     try {
       console.log('📝 Inscription:', email, username);
-      const result = await authService.signUp(email, password, username);
-      
-      if (result.success) {
+
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: { username }
+        }
+      });
+
+      if (error) throw error;
+
+      if (data.user) {
         console.log('✅ Inscription réussie');
         return { success: true };
-      } else {
-        console.error('❌ Erreur inscription:', result.error);
-        return { success: false, error: result.error };
       }
+
+      throw new Error('Erreur lors de la création du compte');
     } catch (error: any) {
       console.error('❌ Erreur inscription:', error);
       return { success: false, error: error.message };
+    } finally {
+      setLoading(false);
     }
   };
 
   // Connexion
   const signIn = async (email: string, password: string) => {
+    setLoading(true);
     try {
       console.log('🔑 Connexion:', email);
-      const result = await authService.signIn(email, password);
-      
-      if (result.success) {
-        console.log('✅ Connexion réussie');
-        return { success: true };
-      } else {
-        console.error('❌ Erreur connexion:', result.error);
-        return { success: false, error: result.error };
-      }
+
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (error) throw error;
+
+      console.log('✅ Connexion réussie');
+      return { success: true };
     } catch (error: any) {
       console.error('❌ Erreur connexion:', error);
       return { success: false, error: error.message };
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -163,15 +212,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const signOut = async () => {
     try {
       console.log('👋 Déconnexion...');
-      const result = await authService.signOut();
       
-      if (result.success) {
-        console.log('✅ Déconnexion réussie');
-        setUser(null);
-        setSupabaseUser(null);
-      } else {
-        console.error('❌ Erreur déconnexion:', result.error);
-      }
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+
+      setUser(null);
+      setSupabaseUser(null);
+      console.log('✅ Déconnexion réussie');
     } catch (error) {
       console.error('❌ Erreur déconnexion:', error);
     }
@@ -186,6 +233,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     signIn,
     signOut,
   };
+
+  // Attendre l'initialisation avant de rendre
+  if (!initialized) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center">
+        <div className="text-white text-center">
+          <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin mx-auto mb-4"></div>
+          <p>Initialisation...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <AuthContext.Provider value={value}>
