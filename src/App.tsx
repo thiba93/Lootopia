@@ -246,27 +246,6 @@ function App() {
 
   const unreadNotificationCount = notifications.filter(n => !n.isRead && n.userId === user?.id).length;
 
-  // Show loading screen while authentication is being checked
-  if (authLoading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
-            <Compass className="w-8 h-8 text-white" />
-          </div>
-          <h1 className="text-2xl font-bold text-white mb-4">Lootopia</h1>
-          <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-white/70">Chargement de l'application...</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="mt-6 bg-white/10 text-white px-4 py-2 rounded-lg hover:bg-white/20 transition-colors text-sm"
-          >
-            Actualiser la page
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <ErrorBoundary>
