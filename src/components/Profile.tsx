@@ -12,7 +12,7 @@ const Profile: React.FC<ProfileProps> = ({ user, onBack }) => {
     { icon: Star, label: 'Points totaux', value: user.points, color: 'from-yellow-500 to-orange-500' },
     { icon: Trophy, label: 'Niveau', value: user.level, color: 'from-purple-500 to-pink-500' },
     { icon: Award, label: 'Achievements', value: user.achievements.length, color: 'from-blue-500 to-cyan-500' },
-    { icon: Calendar, label: 'Chasses créées', value: '3', color: 'from-green-500 to-emerald-500' }
+    { icon: Calendar, label: 'Chasses créées', value: '0', color: 'from-green-500 to-emerald-500' }
   ];
 
   const recentActivity = [
@@ -57,7 +57,7 @@ const Profile: React.FC<ProfileProps> = ({ user, onBack }) => {
               <div className="flex items-center justify-center md:justify-start space-x-4">
                 <div className="flex items-center space-x-1 text-yellow-400">
                   <Star className="w-5 h-5" />
-                  <span className="font-semibold">{user.points} points</span>
+                  <span className="font-semibold"> 350 points</span>
                 </div>
                 <div className="flex items-center space-x-1 text-purple-400">
                   <Trophy className="w-5 h-5" />
@@ -82,7 +82,7 @@ const Profile: React.FC<ProfileProps> = ({ user, onBack }) => {
               <div className={`w-12 h-12 bg-gradient-to-r ${stat.color} rounded-xl flex items-center justify-center mx-auto mb-4`}>
                 <stat.icon className="w-6 h-6 text-white" />
               </div>
-              <div className="text-2xl font-bold text-white mb-2">{stat.value}</div>
+              <div className="text-2xl font-bold text-white mb-2">350</div>
               <div className="text-white/60 text-sm">{stat.label}</div>
             </div>
           ))}
@@ -114,9 +114,7 @@ const Profile: React.FC<ProfileProps> = ({ user, onBack }) => {
         <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10">
           <h3 className="text-xl font-semibold text-white mb-6">Activité récente</h3>
           <div className="space-y-4">
-            {recentActivity.map((activity, index) => (
-              <div key={index} className="flex items-center space-x-4 p-4 bg-white/5 rounded-xl border border-white/10">
-                <div className="text-2xl">{getActivityIcon(activity.type)}</div>
+              <div className="flex items-center space-x-4 p-4 bg-white/5 rounded-xl border border-white/10">
                 <div className="flex-1">
                   <div className="text-white font-medium">Les secrets d'Aulnay-sous-bois</div>
                   <div className="text-white/60 text-sm flex items-center space-x-4">
