@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { auth, db } from '../lib/supabase';
 import { User } from '../types';
 
@@ -6,48 +6,12 @@ export const useAuth = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [initialized, setInitialized] = useState(false);
 
-  useEffect(() => {
-    console.log('🔄 Initialisation de l\'authentification...');
+  // Fonction pour charger le profil utilisateur
+  const loadUserProfile = useCallback(async (supabaseUser: any) => {
+    if (!supabaseUser?.id) return;
     
-    // Vérifier s'il y a un utilisateur connecté
-    const checkCurrentUser = async () => {
-      try {
-        const { user: currentUser } = await auth.getCurrentUser();
-        if (currentUser) {
-          console.log('✅ Utilisateur trouvé au démarrage:', currentUser.id);
-          await loadUserProfile(currentUser);
-        }
-      } catch (error) {
-        console.error('❌ Erreur vérification utilisateur:', error);
-      }
-    };
-
-    checkCurrentUser();
-
-    // Écouter les changements d'authentification
-    const { data: { subscription } } = auth.onAuthStateChange(async (event, session) => {
-      console.log('🔔 Changement d\'état auth:', { event, userId: session?.user?.id });
-      
-      if (event === 'SIGNED_IN' && session?.user) {
-        console.log('✅ Utilisateur connecté, chargement du profil...');
-        await loadUserProfile(session.user);
-      } else if (event === 'SIGNED_OUT') {
-        console.log('👋 Utilisateur déconnecté');
-        setUser(null);
-        setIsAuthenticated(false);
-        setLoading(false);
-      }
-    });
-
-    return () => {
-      if (subscription?.unsubscribe) {
-        subscription.unsubscribe();
-      }
-    };
-  }, []);
-
-  const loadUserProfile = async (supabaseUser: any) => {
     console.log('🔄 Chargement profil utilisateur:', supabaseUser.id);
     setLoading(true);
     
@@ -149,7 +113,54 @@ export const useAuth = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  // Initialisation une seule fois
+  useEffect(() => {
+    if (initialized) return;
+    
+    console.log('🔄 Initialisation de l\'authentification...');
+    
+    let authSubscription: any = null;
+    
+    const initAuth = async () => {
+      try {
+        // Vérifier s'il y a un utilisateur connecté
+        const { user: currentUser } = await auth.getCurrentUser();
+        if (currentUser) {
+          console.log('✅ Utilisateur trouvé au démarrage:', currentUser.id);
+          await loadUserProfile(currentUser);
+        }
+
+        // Écouter les changements d'authentification
+        authSubscription = auth.onAuthStateChange(async (event, session) => {
+          console.log('🔔 Changement d\'état auth:', { event, userId: session?.user?.id });
+          
+          if (event === 'SIGNED_IN' && session?.user) {
+            console.log('✅ Utilisateur connecté, chargement du profil...');
+            await loadUserProfile(session.user);
+          } else if (event === 'SIGNED_OUT') {
+            console.log('👋 Utilisateur déconnecté');
+            setUser(null);
+            setIsAuthenticated(false);
+            setLoading(false);
+          }
+        });
+      } catch (error) {
+        console.error('❌ Erreur initialisation auth:', error);
+      } finally {
+        setInitialized(true);
+      }
+    };
+
+    initAuth();
+
+    return () => {
+      if (authSubscription?.data?.subscription?.unsubscribe) {
+        authSubscription.data.subscription.unsubscribe();
+      }
+    };
+  }, [initialized, loadUserProfile]);
 
   const signUp = async (email: string, password: string, username: string) => {
     console.log('🔄 Tentative d\'inscription:', { email, username });
@@ -164,8 +175,6 @@ export const useAuth = () => {
       }
 
       console.log('✅ Inscription réussie');
-      
-      // Le profil sera chargé automatiquement via onAuthStateChange
       return { data, error: null };
     } catch (error: any) {
       console.error('💥 Exception inscription:', error);
@@ -188,8 +197,6 @@ export const useAuth = () => {
       }
 
       console.log('✅ Connexion réussie');
-      
-      // Le profil sera chargé automatiquement via onAuthStateChange
       return { data, error: null };
     } catch (error: any) {
       console.error('💥 Exception connexion:', error);

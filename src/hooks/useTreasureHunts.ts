@@ -7,23 +7,25 @@ export const useTreasureHunts = () => {
   const [treasureHunts, setTreasureHunts] = useState<TreasureHunt[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [initialized, setInitialized] = useState(false);
 
   const loadTreasureHunts = async () => {
+    if (initialized) return; // Éviter les chargements multiples
+    
     try {
       setLoading(true);
       setError(null);
       
       console.log('🔄 Chargement des chasses au trésor...');
       
-      // Essayer de charger depuis Supabase avec un timeout raisonnable
-      const loadPromise = db.getTreasureHunts();
+      // Essayer de charger depuis Supabase avec un timeout
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Timeout chargement chasses')), 5000)
+        setTimeout(() => reject(new Error('Timeout')), 5000)
       );
       
       try {
         const { data, error: fetchError } = await Promise.race([
-          loadPromise,
+          db.getTreasureHunts(),
           timeoutPromise
         ]) as any;
         
@@ -100,13 +102,18 @@ export const useTreasureHunts = () => {
       setError(null);
     } finally {
       setLoading(false);
+      setInitialized(true);
     }
   };
 
   useEffect(() => {
-    // Charger immédiatement sans délai
-    loadTreasureHunts();
-  }, []);
+    // Charger une seule fois avec un délai pour éviter les conflits
+    const timer = setTimeout(() => {
+      loadTreasureHunts();
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, []); // Pas de dépendances pour éviter les re-chargements
 
   const createTreasureHunt = async (huntData: any, userId: string) => {
     try {
@@ -131,6 +138,7 @@ export const useTreasureHunts = () => {
       }
 
       // Recharger les chasses pour obtenir la liste mise à jour
+      setInitialized(false); // Permettre un nouveau chargement
       await loadTreasureHunts();
       
       return { data: hunt, error: null };

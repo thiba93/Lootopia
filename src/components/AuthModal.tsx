@@ -23,6 +23,10 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Éviter les soumissions multiples
+    if (loading) return;
+    
     console.log('🔄 Soumission formulaire:', { isLogin, email: formData.email });
     
     setError(null);
@@ -64,7 +68,11 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
         
         console.log('✅ Connexion réussie, fermeture modal');
         setSuccess('Connexion réussie !');
-        setTimeout(() => onClose(), 1000);
+        
+        // Fermer la modal après un délai
+        setTimeout(() => {
+          onClose();
+        }, 1000);
       } else {
         console.log('📝 Tentative d\'inscription...');
         const { error } = await signUp(formData.email, formData.password, formData.username);
@@ -77,7 +85,11 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
         
         console.log('✅ Inscription réussie, fermeture modal');
         setSuccess('Inscription réussie ! Bienvenue sur Lootopia !');
-        setTimeout(() => onClose(), 1500);
+        
+        // Fermer la modal après un délai
+        setTimeout(() => {
+          onClose();
+        }, 1500);
       }
     } catch (err: any) {
       console.error('💥 Exception formulaire:', err);
@@ -93,6 +105,20 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
     // Effacer les messages d'erreur/succès quand l'utilisateur tape
     if (error) setError(null);
     if (success) setSuccess(null);
+  };
+
+  const handleModeSwitch = () => {
+    if (loading) return; // Empêcher le changement pendant le chargement
+    
+    setIsLogin(!isLogin);
+    setError(null);
+    setSuccess(null);
+    setFormData({
+      email: '',
+      password: '',
+      username: '',
+      confirmPassword: ''
+    });
   };
 
   return (
@@ -223,17 +249,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
 
         <div className="mt-6 text-center border-t border-white/10 pt-6">
           <button
-            onClick={() => {
-              setIsLogin(!isLogin);
-              setError(null);
-              setSuccess(null);
-              setFormData({
-                email: '',
-                password: '',
-                username: '',
-                confirmPassword: ''
-              });
-            }}
+            onClick={handleModeSwitch}
             className="text-white/70 hover:text-white transition-colors text-sm"
             disabled={loading}
           >
