@@ -42,6 +42,17 @@ const HomePage: React.FC<HomePageProps> = ({ treasureHunts, loading = false, onJ
       icon: Shield,
       title: 'Sécurisé et fiable',
       description: 'Vos données sont protégées avec une authentification sécurisée',
+      color: 'from-green-500 to-emerald-500'
+    }
+  ];
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
+      {/* Hero Section */}
+      <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
+        {/* Background gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-br from-purple-900/50 via-blue-900/50 to-indigo-900/50"></div>
+        
         {loading ? (
           <LoadingSpinner message="Chargement des chasses au trésor..." />
         ) : (
