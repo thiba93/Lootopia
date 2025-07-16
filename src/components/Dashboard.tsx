@@ -10,9 +10,10 @@ interface DashboardProps {
   loading?: boolean;
   onJoinHunt: (huntId: string) => void;
   onCreateHunt: () => void;
+  onNavigate?: (page: string) => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ user, treasureHunts, loading = false, onJoinHunt, onCreateHunt }) => {
+const Dashboard: React.FC<DashboardProps> = ({ user, treasureHunts, loading = false, onJoinHunt, onCreateHunt, onNavigate }) => {
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'easy' | 'medium' | 'hard'>('all');
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -71,7 +72,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, treasureHunts, loading = fa
         {/* Quick Actions */}
         <div className="grid sm:grid-cols-2 gap-4 sm:gap-6 mb-8">
           <button
-            onClick={() => setCurrentPage('my-hunts')}
+            onClick={() => onNavigate('my-hunts')}
             className="bg-gradient-to-r from-blue-500 to-cyan-500 rounded-xl sm:rounded-2xl p-4 sm:p-6 text-left hover:from-blue-600 hover:to-cyan-600 transition-all transform hover:scale-105"
           >
             <div className="flex items-center justify-between">

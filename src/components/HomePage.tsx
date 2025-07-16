@@ -56,6 +56,38 @@ const HomePage: React.FC<HomePageProps> = ({ treasureHunts, loading = false, onJ
         {loading ? (
           <LoadingSpinner message="Chargement des chasses au trésor..." />
         ) : (
+          treasureHunts.length === 0 ? (
+            <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+              <div className="mb-8">
+                <div className="inline-flex items-center space-x-2 bg-white/10 backdrop-blur-sm rounded-full px-6 py-3 mb-6">
+                  <Compass className="w-5 h-5 text-yellow-400" />
+                  <span className="text-white font-medium">Mode démo - Données d'exemple</span>
+                </div>
+                <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold text-white mb-6">
+                  Découvrez <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-500">Lootopia</span>
+                </h1>
+                <p className="text-lg sm:text-xl md:text-2xl text-white/80 max-w-4xl mx-auto mb-8 leading-relaxed">
+                  Embarquez pour des aventures épiques, résolvez des énigmes captivantes et découvrez des trésors cachés dans le monde réel. L'aventure commence maintenant !
+                </p>
+                <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                  <button
+                    onClick={onGetStarted}
+                    className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-6 sm:px-8 py-3 sm:py-4 rounded-lg font-semibold text-base sm:text-lg hover:from-purple-600 hover:to-pink-600 transition-all transform hover:scale-105 flex items-center justify-center space-x-2"
+                  >
+                    <Play className="w-5 h-5" />
+                    <span>Commencer l'aventure</span>
+                  </button>
+                  <button 
+                    onClick={onGetStarted}
+                    className="bg-white/10 backdrop-blur-sm text-white px-6 sm:px-8 py-3 sm:py-4 rounded-lg font-semibold text-base sm:text-lg hover:bg-white/20 transition-all flex items-center justify-center space-x-2"
+                  >
+                    <Map className="w-5 h-5" />
+                    <span>Explorer la carte</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
           <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <div className="mb-8">
               <div className="inline-flex items-center space-x-2 bg-white/10 backdrop-blur-sm rounded-full px-6 py-3 mb-6">
@@ -86,6 +118,7 @@ const HomePage: React.FC<HomePageProps> = ({ treasureHunts, loading = false, onJ
               </div>
             </div>
           </div>
+          )
         )}
         
 

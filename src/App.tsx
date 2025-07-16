@@ -225,6 +225,7 @@ function AppContent() {
             loading={huntsLoading}
             onJoinHunt={handleJoinHunt}
             onCreateHunt={() => setCurrentPage('create')}
+            onNavigate={setCurrentPage}
           />
         );
       case 'map':

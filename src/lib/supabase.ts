@@ -4,18 +4,22 @@ import { Database } from '../types/database';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://placeholder.supabase.co';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'placeholder-key';
 
-// Mode dégradé si les variables d'environnement sont manquantes
-const isDemoMode = !import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY;
+// Mode dégradé si les variables d'environnement sont manquantes ou invalides
+const isDemoMode = !import.meta.env.VITE_SUPABASE_URL || 
+                   !import.meta.env.VITE_SUPABASE_ANON_KEY ||
+                   import.meta.env.VITE_SUPABASE_URL === 'https://placeholder.supabase.co' ||
+                   import.meta.env.VITE_SUPABASE_ANON_KEY === 'placeholder-key';
 
 if (isDemoMode) {
-  console.warn('⚠️ Mode démo activé - Variables Supabase manquantes');
+  console.warn('🎭 Mode démo activé - Variables Supabase manquantes ou invalides');
 }
 
 export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: false
+    detectSessionInUrl: false,
+    flowType: 'pkce'
   }
 });
 
