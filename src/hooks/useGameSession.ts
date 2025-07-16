@@ -186,9 +186,6 @@ export const useGameSession = (hunt: TreasureHunt, user: User) => {
     if (updatedSession.currentClueIndex >= hunt.clues.length) {
       updatedSession.status = 'completed';
       updatedSession.completedAt = new Date().toISOString();
-      
-      // Mettre à jour les points du joueur quand la chasse est terminée
-      await updateUserPoints(updatedSession.score);
     }
 
     setSession(updatedSession);
@@ -219,48 +216,6 @@ export const useGameSession = (hunt: TreasureHunt, user: User) => {
     }
   }, [session, hunt.clues, timeElapsed, currentClue]);
 
-  // Fonction pour mettre à jour les points du joueur
-  const updateUserPoints = async (earnedPoints: number) => {
-    if (!user?.id || user.id.startsWith('demo-')) {
-      console.log('⚠️ Mode démo, points non sauvegardés');
-      return;
-    }
-
-    try {
-      // Récupérer les points actuels
-      const { data: profile, error: fetchError } = await supabase
-        .from('user_profiles')
-        .select('points, level')
-        .eq('id', user.id)
-        .single();
-
-      if (fetchError) {
-        console.error('❌ Erreur récupération profil:', fetchError);
-        return;
-      }
-
-      const newPoints = (profile.points || 0) + earnedPoints;
-      const newLevel = Math.floor(newPoints / 1000) + 1;
-
-      // Mettre à jour les points et le niveau
-      const { error: updateError } = await supabase
-        .from('user_profiles')
-        .update({
-          points: newPoints,
-          level: newLevel,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', user.id);
-
-      if (updateError) {
-        console.error('❌ Erreur mise à jour points:', updateError);
-      } else {
-        console.log('✅ Points mis à jour:', newPoints);
-      }
-    } catch (error) {
-      console.error('❌ Erreur générale mise à jour points:', error);
-    }
-  };
   const useHint = useCallback(async () => {
     if (!session) return;
 

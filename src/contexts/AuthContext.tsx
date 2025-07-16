@@ -242,9 +242,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setLoading(true);
     try {
       console.log('📝 Inscription:', email, username);
-      
-      // Déterminer le rôle basé sur le username
-      const role = username.toLowerCase().includes('admin') ? 'organizer' : 'player';
 
       // Timeout pour l'inscription
       const timeoutPromise = new Promise<never>((_, reject) => 
@@ -255,7 +252,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         email,
         password,
         options: {
-          data: { username, role }
+          data: { username }
         }
       });
 
@@ -266,9 +263,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (data.user) {
         console.log('✅ Inscription réussie');
         
-        // Créer immédiatement un utilisateur avec le bon rôle
+        // Créer immédiatement un utilisateur démo en attendant la confirmation
         const demoUser = createDemoUser(email, username);
-        demoUser.role = role;
         setUser(demoUser);
         setSupabaseUser(data.user);
         
@@ -281,7 +277,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       // Mode démo en cas d'erreur
       const demoUser = createDemoUser(email, username);
-      demoUser.role = username.toLowerCase().includes('admin') ? 'organizer' : 'player';
       setUser(demoUser);
       
       return { success: true }; // Succès en mode démo
@@ -316,9 +311,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.warn('⚠️ Erreur connexion, mode démo:', error);
       
       // Mode démo en cas d'erreur
-      const username = email.split('@')[0] || 'DemoUser';
-      const demoUser = createDemoUser(email, username);
-      demoUser.role = email.toLowerCase().includes('admin') ? 'organizer' : 'player';
+      const demoUser = createDemoUser(email, 'DemoUser');
+      // Assigner le rôle organizer si email contient "admin"
+      if (email.toLowerCase().includes('admin')) {
+        demoUser.role = 'organizer';
+      }
       setUser(demoUser);
       
       return { success: true }; // Succès en mode démo

@@ -230,13 +230,10 @@ const MyHunts: React.FC<MyHuntsProps> = ({ user, onBack, onJoinHunt }) => {
   return (
     <div className="min-h-screen pt-8 pb-16">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-            disabled={tab.id === 'created' && user.role !== 'organizer'}
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <button
-                : tab.id === 'created' && user.role !== 'organizer'
-                  ? 'text-white/30 cursor-not-allowed'
-                  : 'text-white/70 hover:text-white hover:bg-white/10'
+            onClick={onBack}
             className="flex items-center space-x-2 text-white/70 hover:text-white transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />
@@ -392,15 +389,7 @@ const MyHunts: React.FC<MyHuntsProps> = ({ user, onBack, onJoinHunt }) => {
             {/* Chasses créées (organisateur) */}
             {activeTab === 'created' && (
               <div>
-                {user.role !== 'organizer' ? (
-                  <div className="text-center py-12">
-                    <Trophy className="w-16 h-16 text-white/20 mx-auto mb-4" />
-                    <div className="text-white/60 text-lg mb-2">Accès réservé aux organisateurs</div>
-                    <div className="text-white/40 text-sm">
-                      Seuls les utilisateurs avec "admin" dans leur nom peuvent créer des chasses
-                    </div>
-                  </div>
-                ) : createdHunts.length === 0 ? (
+                {createdHunts.length === 0 ? (
                   <div className="text-center py-12">
                     <Trophy className="w-16 h-16 text-white/20 mx-auto mb-4" />
                     <div className="text-white/60 text-lg mb-2">Aucune chasse créée</div>
