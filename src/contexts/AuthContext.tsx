@@ -69,53 +69,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         .eq('id', supabaseUser.id)
         .single();
       
-      try {
-        const { data: profile, error } = await Promise.race([profilePromise, timeoutPromise]);
+      const { data: profile, error } = await Promise.race([profilePromise, timeoutPromise]);
       
-        if (error && error.code !== 'PGRST116') {
-          console.warn('⚠️ Erreur profil, tentative de création...', error);
-          throw error; // Laisser le catch externe gérer
-        }
-        
-        if (profile) {
-          const userData: User = {
-            id: profile.id,
-            username: profile.username,
-            email: profile.email,
-            role: (profile.role as 'player' | 'organizer') || 'player',
-            points: profile.points || 0,
-            level: profile.level || 1,
-            avatar: profile.avatar_url,
-            createdAt: profile.created_at,
-            achievements: [],
-            completedHunts: [],
-            createdHunts: [],
-            activeHunts: [],
-          };
-          
-          setUser(userData);
-          console.log('✅ Profil chargé:', userData.username);
-          return true;
-        }
-        
-        // Si pas de profil trouvé, essayer de le créer
-        console.log('📝 Aucun profil trouvé, création...');
-        throw new Error('Profile not found');
-        
-      } catch (profileError) {
-        console.warn('⚠️ Erreur profil, création...', profileError);
+      if (error && error.code !== 'PGRST116') {
+        console.warn('⚠️ Erreur profil, création...', error);
         
         // Essayer de créer le profil
-        const username = supabaseUser.user_metadata?.username || supabaseUser.email?.split('@')[0] || 'User';
-        const role = username.toLowerCase().includes('admin') ? 'organizer' : 'player';
-        
         const createPromise = supabase
           .from('user_profiles')
           .insert({
             id: supabaseUser.id,
-            username: username,
+            username: supabaseUser.user_metadata?.username || supabaseUser.email?.split('@')[0] || 'User',
             email: supabaseUser.email || '',
-            role: role,
+            role: 'player',
             points: 0,
             level: 1
           })
@@ -123,7 +89,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           .single();
         
         const createTimeoutPromise = new Promise<never>((_, reject) => 
-          setTimeout(() => reject(new Error('Timeout création')), 5000)
+          setTimeout(() => reject(new Error('Timeout création')), 3000)
         );
         
         try {
@@ -152,6 +118,36 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         } catch (createError) {
           console.warn('⚠️ Échec création profil:', createError);
         }
+        
+        // Fallback vers utilisateur démo
+        const demoUser = createDemoUser(
+          supabaseUser.email || 'demo@example.com',
+          supabaseUser.user_metadata?.username || 'DemoUser'
+        );
+        setUser(demoUser);
+        console.log('🎭 Utilisateur démo créé:', demoUser.username);
+        return true;
+      }
+      
+      if (profile) {
+        const userData: User = {
+          id: profile.id,
+          username: profile.username,
+          email: profile.email,
+          role: (profile.role as 'player' | 'organizer') || 'player',
+          points: profile.points || 0,
+          level: profile.level || 1,
+          avatar: profile.avatar_url,
+          createdAt: profile.created_at,
+          achievements: [],
+          completedHunts: [],
+          createdHunts: [],
+          activeHunts: [],
+        };
+        
+        setUser(userData);
+        console.log('✅ Profil chargé:', userData.username);
+        return true;
       }
       
       return false;
@@ -246,9 +242,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setLoading(true);
     try {
       console.log('📝 Inscription:', email, username);
-      
-      // Déterminer le rôle basé sur le username
-      const role = username.toLowerCase().includes('admin') ? 'organizer' : 'player';
 
       // Timeout pour l'inscription
       const timeoutPromise = new Promise<never>((_, reject) => 
@@ -270,9 +263,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (data.user) {
         console.log('✅ Inscription réussie');
         
-        // Créer immédiatement un utilisateur avec le bon rôle
+        // Créer immédiatement un utilisateur démo en attendant la confirmation
         const demoUser = createDemoUser(email, username);
-        demoUser.role = role;
         setUser(demoUser);
         setSupabaseUser(data.user);
         
@@ -285,7 +277,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       // Mode démo en cas d'erreur
       const demoUser = createDemoUser(email, username);
-      demoUser.role = username.toLowerCase().includes('admin') ? 'organizer' : 'player';
       setUser(demoUser);
       
       return { success: true }; // Succès en mode démo
@@ -321,8 +312,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       // Mode démo en cas d'erreur
       const demoUser = createDemoUser(email, 'DemoUser');
-      // Assigner le rôle organizer si email ou username contient "admin"
-      if (email.toLowerCase().includes('admin') || demoUser.username.toLowerCase().includes('admin')) {
+      // Assigner le rôle organizer si email contient "admin"
+      if (email.toLowerCase().includes('admin')) {
         demoUser.role = 'organizer';
       }
       setUser(demoUser);

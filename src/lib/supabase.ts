@@ -31,8 +31,6 @@ export const authService = {
   // Inscription
   async signUp(email: string, password: string, username: string) {
     try {
-      console.log('🔄 Inscription Supabase:', { email, username });
-      
       // 1. Créer l'utilisateur
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
@@ -45,12 +43,24 @@ export const authService = {
       if (authError) throw authError;
       if (!authData.user) throw new Error('Erreur lors de la création du compte');
 
-      // 2. Le profil sera créé automatiquement par le trigger
-      console.log('✅ Utilisateur créé, profil sera créé par trigger');
+      // 2. Créer le profil
+      const { error: profileError } = await supabase
+        .from('user_profiles')
+        .insert({
+          id: authData.user.id,
+          username,
+          email,
+          points: 0,
+          level: 1,
+          role: username.toLowerCase().includes('admin') ? 'organizer' : 'player'
+        });
+
+      if (profileError) {
+        console.warn('Erreur création profil:', profileError);
+      }
 
       return { success: true, user: authData.user };
     } catch (error: any) {
-      console.error('❌ Erreur inscription:', error);
       return { success: false, error: error.message };
     }
   },
@@ -58,18 +68,14 @@ export const authService = {
   // Connexion
   async signIn(email: string, password: string) {
     try {
-      console.log('🔄 Connexion Supabase:', email);
-      
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
       });
 
       if (error) throw error;
-      console.log('✅ Connexion réussie');
       return { success: true, user: data.user };
     } catch (error: any) {
-      console.error('❌ Erreur connexion:', error);
       return { success: false, error: error.message };
     }
   },
