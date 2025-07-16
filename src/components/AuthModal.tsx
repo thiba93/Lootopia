@@ -23,45 +23,42 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('🔄 Soumission formulaire auth:', { isLogin, email: formData.email });
     setLoading(true);
     setError(null);
     
-    // Timeout de sécurité côté composant
-    const componentTimeout = setTimeout(() => {
-      setLoading(false);
-      setError('Opération trop longue. Veuillez réessayer.');
-    }, 20000);
-    
     try {
       if (isLogin) {
+        console.log('🔑 Tentative de connexion...');
         const { error } = await signIn(formData.email, formData.password);
         if (error) {
-          clearTimeout(componentTimeout);
+          console.error('❌ Erreur connexion modal:', error);
           setError(error.message);
           return;
         }
+        console.log('✅ Connexion réussie dans modal');
       } else {
         if (formData.password !== formData.confirmPassword) {
-          clearTimeout(componentTimeout);
           setError('Les mots de passe ne correspondent pas');
           return;
         }
         
+        console.log('📝 Tentative d\'inscription...');
         const { error } = await signUp(formData.email, formData.password, formData.username);
         if (error) {
-          clearTimeout(componentTimeout);
+          console.error('❌ Erreur inscription modal:', error);
           setError(error.message);
           return;
         }
+        console.log('✅ Inscription réussie dans modal');
       }
       
-      clearTimeout(componentTimeout);
+      console.log('🎉 Authentification réussie, fermeture modal');
       onClose();
     } catch (err: any) {
-      clearTimeout(componentTimeout);
+      console.error('💥 Exception dans modal auth:', err);
       setError(err.message || 'Une erreur est survenue');
     } finally {
-      clearTimeout(componentTimeout);
       setLoading(false);
     }
   };
@@ -189,21 +186,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
               isLogin ? 'Se connecter' : 'S\'inscrire'
             )}
           </button>
-          
-          {loading && (
-            <div className="mt-2 text-center">
-              <button
-                type="button"
-                onClick={() => {
-                  setLoading(false);
-                  setError('Opération annulée par l\'utilisateur');
-                }}
-                className="text-white/60 hover:text-white text-sm underline"
-              >
-                Annuler
-              </button>
-            </div>
-          )}
         </form>
 
         <div className="mt-6 text-center border-t border-white/10 pt-6">

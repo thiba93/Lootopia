@@ -4,128 +4,129 @@ import { Database } from '../types/database';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-// Create a fallback client if environment variables are missing
-let supabase: any;
+console.log('🔍 Supabase Config Debug:', {
+  url: supabaseUrl ? 'Present' : 'Missing',
+  key: supabaseAnonKey ? 'Present' : 'Missing',
+  urlValue: supabaseUrl,
+  keyLength: supabaseAnonKey?.length
+});
 
-try {
-  if (!supabaseUrl || !supabaseAnonKey) {
-    console.warn('Supabase environment variables missing. Using offline mode.');
-    // Create a mock client for development
-    supabase = {
-      auth: {
-        getSession: () => Promise.resolve({ data: { session: null }, error: null }),
-        signUp: () => Promise.resolve({ data: null, error: { message: 'Offline mode' } }),
-        signInWithPassword: () => Promise.resolve({ data: null, error: { message: 'Offline mode' } }),
-        signOut: () => Promise.resolve({ error: null }),
-        onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
-      },
-      from: () => ({
-        select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: null, error: { message: 'Offline mode' } }) }) }),
-        insert: () => ({ select: () => ({ single: () => Promise.resolve({ data: null, error: { message: 'Offline mode' } }) }) }),
-        update: () => ({ eq: () => ({ select: () => ({ single: () => Promise.resolve({ data: null, error: { message: 'Offline mode' } }) }) }) }),
-      }),
-    };
-  } else {
-    supabase = createClient<Database>(
-      supabaseUrl,
-      supabaseAnonKey,
-      {
-        auth: {
-          autoRefreshToken: true,
-          persistSession: true,
-          detectSessionInUrl: false,
-          flowType: 'pkce'
-        }
-      }
-    );
-  }
-} catch (error) {
-  console.error('Error creating Supabase client:', error);
-  // Fallback mock client
-  supabase = {
-    auth: {
-      getSession: () => Promise.resolve({ data: { session: null }, error: null }),
-      signUp: () => Promise.resolve({ data: null, error: { message: 'Connection error' } }),
-      signInWithPassword: () => Promise.resolve({ data: null, error: { message: 'Connection error' } }),
-      signOut: () => Promise.resolve({ error: null }),
-      onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
-    },
-    from: () => ({
-      select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: null, error: { message: 'Connection error' } }) }) }),
-      insert: () => ({ select: () => ({ single: () => Promise.resolve({ data: null, error: { message: 'Connection error' } }) }) }),
-      update: () => ({ eq: () => ({ select: () => ({ single: () => Promise.resolve({ data: null, error: { message: 'Connection error' } }) }) }) }),
-    }),
-  };
+// Vérification des variables d'environnement
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error('❌ Variables d\'environnement Supabase manquantes!');
+  console.log('VITE_SUPABASE_URL:', supabaseUrl);
+  console.log('VITE_SUPABASE_ANON_KEY présente:', !!supabaseAnonKey);
+  throw new Error('Variables d\'environnement Supabase manquantes');
 }
 
-export { supabase };
+// Configuration Supabase optimisée pour l'authentification
+export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: false,
+    flowType: 'implicit', // Changé de 'pkce' à 'implicit' pour plus de compatibilité
+    debug: true // Activer les logs de debug
+  },
+  global: {
+    headers: {
+      'X-Client-Info': 'lootopia-web'
+    }
+  }
+});
 
-// Helper functions for authentication
+// Test de connexion au démarrage
+supabase.auth.getSession().then(({ data, error }) => {
+  if (error) {
+    console.error('❌ Erreur de session initiale:', error);
+  } else {
+    console.log('✅ Session initiale récupérée:', data.session ? 'Connecté' : 'Non connecté');
+  }
+});
+
+// Helper functions pour l'authentification avec logs détaillés
 export const auth = {
   signUp: async (email: string, password: string, username: string) => {
+    console.log('🔄 Tentative d\'inscription pour:', email);
+    
     try {
-      // Timeout pour éviter l'attente infinie
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Timeout: Inscription trop longue')), 15000)
-      );
-      
-      const signUpPromise = supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
             username,
-          },
-          emailRedirectTo: undefined, // Désactiver la confirmation par email
-        },
+          }
+        }
       });
       
-      const { data, error } = await Promise.race([signUpPromise, timeoutPromise]) as any;
+      console.log('📝 Résultat inscription:', { 
+        success: !error, 
+        user: data.user?.id,
+        session: !!data.session,
+        error: error?.message 
+      });
       
-      return { data, error };
+      if (error) {
+        console.error('❌ Erreur inscription:', error);
+        return { data: null, error };
+      }
+      
+      // Si l'inscription réussit mais qu'il n'y a pas de session, on essaie de se connecter
+      if (data.user && !data.session) {
+        console.log('🔄 Inscription réussie, tentative de connexion automatique...');
+        return await auth.signIn(email, password);
+      }
+      
+      return { data, error: null };
     } catch (error: any) {
-      console.error('SignUp error:', error);
+      console.error('💥 Exception lors de l\'inscription:', error);
       return { 
         data: null, 
-        error: { 
-          message: error.message || 'Erreur lors de l\'inscription. Veuillez réessayer.' 
-        } 
+        error: { message: error.message || 'Erreur lors de l\'inscription' } 
       };
     }
   },
 
   signIn: async (email: string, password: string) => {
+    console.log('🔄 Tentative de connexion pour:', email);
+    
     try {
-      // Timeout pour éviter l'attente infinie
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Timeout: Connexion trop longue')), 15000)
-      );
-      
-      const signInPromise = supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
-        password,
+        password
       });
       
-      const { data, error } = await Promise.race([signInPromise, timeoutPromise]) as any;
+      console.log('📝 Résultat connexion:', { 
+        success: !error, 
+        user: data.user?.id,
+        session: !!data.session,
+        error: error?.message 
+      });
       
-      return { data, error };
+      if (error) {
+        console.error('❌ Erreur connexion:', error);
+        return { data: null, error };
+      }
+      
+      return { data, error: null };
     } catch (error: any) {
-      console.error('SignIn error:', error);
+      console.error('💥 Exception lors de la connexion:', error);
       return { 
         data: null, 
-        error: { 
-          message: error.message || 'Erreur lors de la connexion. Veuillez réessayer.' 
-        } 
+        error: { message: error.message || 'Erreur lors de la connexion' } 
       };
     }
   },
 
   signOut: async () => {
+    console.log('🔄 Déconnexion...');
     try {
       const { error } = await supabase.auth.signOut();
+      console.log('📝 Résultat déconnexion:', { success: !error, error: error?.message });
       return { error };
     } catch (error: any) {
-      console.error('SignOut error:', error);
+      console.error('💥 Exception lors de la déconnexion:', error);
       return { error };
     }
   },
@@ -133,30 +134,56 @@ export const auth = {
   getCurrentUser: async () => {
     try {
       const { data: { user }, error } = await supabase.auth.getUser();
+      console.log('📝 Utilisateur actuel:', { user: user?.id, error: error?.message });
       return { user, error };
     } catch (error: any) {
-      console.error('GetCurrentUser error:', error);
+      console.error('💥 Exception récupération utilisateur:', error);
       return { user: null, error };
     }
   },
 
   onAuthStateChange: (callback: (event: string, session: any) => void) => {
-    return supabase.auth.onAuthStateChange(callback);
-  },
+    console.log('👂 Écoute des changements d\'authentification...');
+    return supabase.auth.onAuthStateChange((event, session) => {
+      console.log('🔔 Changement d\'auth:', { event, user: session?.user?.id });
+      callback(event, session);
+    });
+  }
 };
 
-// Helper functions for database operations
+// Helper functions pour la base de données
 export const db = {
   // User profiles
   getUserProfile: async (userId: string) => {
+    console.log('🔄 Récupération profil utilisateur:', userId);
     try {
       const { data, error } = await supabase
         .from('user_profiles')
         .select('*')
         .eq('id', userId)
         .single();
+      
+      console.log('📝 Profil utilisateur:', { found: !!data, error: error?.message });
       return { data, error };
     } catch (error) {
+      console.error('💥 Exception profil utilisateur:', error);
+      return { data: null, error };
+    }
+  },
+
+  createUserProfile: async (profile: any) => {
+    console.log('🔄 Création profil utilisateur:', profile.id);
+    try {
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .insert(profile)
+        .select()
+        .single();
+      
+      console.log('📝 Création profil:', { success: !error, error: error?.message });
+      return { data, error };
+    } catch (error) {
+      console.error('💥 Exception création profil:', error);
       return { data: null, error };
     }
   },

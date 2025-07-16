@@ -10,36 +10,26 @@ export const useAuth = () => {
 
   useEffect(() => {
     let mounted = true;
-    let timeoutId: NodeJS.Timeout;
 
     const initializeAuth = async () => {
+      console.log('🔄 Initialisation de l\'authentification...');
+      
       try {
-        // Set a maximum loading time of 10 seconds
-        timeoutId = setTimeout(() => {
-          if (mounted) {
-            console.warn('Auth initialization timeout - proceeding without auth');
-            setLoading(false);
-          }
-        }, 10000);
-
-        // Get initial session with timeout
-        const sessionPromise = supabase.auth.getSession();
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Session timeout')), 5000)
-        );
-
-        const { data: { session }, error } = await Promise.race([
-          sessionPromise,
-          timeoutPromise
-        ]) as any;
+        // Récupérer la session actuelle
+        const { data: { session }, error } = await supabase.auth.getSession();
         
         if (error) {
-          console.error('Error getting session:', error);
+          console.error('❌ Erreur récupération session:', error);
           if (mounted) {
             setLoading(false);
           }
           return;
         }
+
+        console.log('📝 Session récupérée:', { 
+          hasSession: !!session, 
+          userId: session?.user?.id 
+        });
 
         if (session?.user && mounted) {
           await loadUserProfile(session.user);
@@ -47,36 +37,38 @@ export const useAuth = () => {
           setLoading(false);
         }
       } catch (error) {
-        console.error('Error initializing auth:', error);
+        console.error('💥 Exception initialisation auth:', error);
         if (mounted) {
           setLoading(false);
-        }
-      } finally {
-        if (timeoutId) {
-          clearTimeout(timeoutId);
         }
       }
     };
 
-    // Initialize auth
+    // Initialiser l'authentification
     initializeAuth();
 
-    // Listen for auth changes
+    // Écouter les changements d'authentification
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!mounted) return;
 
+      console.log('🔔 Changement d\'état auth:', { event, userId: session?.user?.id });
+
       try {
         if (event === 'SIGNED_IN' && session?.user) {
+          console.log('✅ Utilisateur connecté, chargement du profil...');
           await loadUserProfile(session.user);
         } else if (event === 'SIGNED_OUT') {
+          console.log('👋 Utilisateur déconnecté');
           setUser(null);
           setIsAuthenticated(false);
           setLoading(false);
+        } else if (event === 'TOKEN_REFRESHED') {
+          console.log('🔄 Token rafraîchi');
         } else {
           setLoading(false);
         }
       } catch (error) {
-        console.error('Error in auth state change:', error);
+        console.error('💥 Erreur changement état auth:', error);
         if (mounted) {
           setLoading(false);
         }
@@ -85,49 +77,36 @@ export const useAuth = () => {
 
     return () => {
       mounted = false;
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
       subscription.unsubscribe();
     };
   }, []);
 
   const loadUserProfile = async (supabaseUser: SupabaseUser) => {
+    console.log('🔄 Chargement profil utilisateur:', supabaseUser.id);
+    
     try {
+      // Essayer de récupérer le profil existant
       const { data: profile, error } = await db.getUserProfile(supabaseUser.id);
       
-      if (error) {
-        console.error('Error loading user profile:', error);
-        // Continue without profile data
-        const basicUser: User = {
-          id: supabaseUser.id,
-          username: supabaseUser.user_metadata?.username || supabaseUser.email?.split('@')[0] || 'User',
-          email: supabaseUser.email || '',
-          points: 0,
-          level: 1,
-          achievements: [],
-          createdAt: supabaseUser.created_at || new Date().toISOString(),
-          completedHunts: [],
-          createdHunts: [],
-        };
-        
-        setUser(basicUser);
-        setIsAuthenticated(true);
-        setLoading(false);
-        return;
+      if (error && error.code !== 'PGRST116') { // PGRST116 = pas trouvé
+        console.error('❌ Erreur chargement profil:', error);
       }
 
+      let userData: User;
+
       if (profile) {
-        // Get user achievements with error handling
+        console.log('✅ Profil trouvé en base');
+        
+        // Charger les achievements
         let userAchievements: any[] = [];
         try {
           const { data: achievements } = await db.getUserAchievements(supabaseUser.id);
           userAchievements = achievements || [];
         } catch (error) {
-          console.error('Error loading achievements:', error);
+          console.error('⚠️ Erreur chargement achievements:', error);
         }
         
-        const userData: User = {
+        userData = {
           id: profile.id,
           username: profile.username,
           email: profile.email,
@@ -147,15 +126,31 @@ export const useAuth = () => {
           completedHunts: [],
           createdHunts: [],
         };
-
-        setUser(userData);
-        setIsAuthenticated(true);
       } else {
-        // Profile doesn't exist, create basic user
-        const basicUser: User = {
+        console.log('📝 Profil non trouvé, création d\'un nouveau profil...');
+        
+        // Créer un nouveau profil
+        const newProfile = {
           id: supabaseUser.id,
-          username: supabaseUser.user_metadata?.username || supabaseUser.email?.split('@')[0] || 'User',
+          username: supabaseUser.user_metadata?.username || 
+                   supabaseUser.email?.split('@')[0] || 
+                   'User',
           email: supabaseUser.email || '',
+          points: 0,
+          level: 1,
+        };
+
+        const { data: createdProfile, error: createError } = await db.createUserProfile(newProfile);
+        
+        if (createError) {
+          console.error('❌ Erreur création profil:', createError);
+          // Continuer avec un profil basique même si la création échoue
+        }
+
+        userData = {
+          id: supabaseUser.id,
+          username: newProfile.username,
+          email: newProfile.email,
           points: 0,
           level: 1,
           achievements: [],
@@ -163,13 +158,15 @@ export const useAuth = () => {
           completedHunts: [],
           createdHunts: [],
         };
-        
-        setUser(basicUser);
-        setIsAuthenticated(true);
       }
+
+      console.log('✅ Profil utilisateur chargé:', userData.username);
+      setUser(userData);
+      setIsAuthenticated(true);
     } catch (error) {
-      console.error('Error loading user profile:', error);
-      // Create fallback user
+      console.error('💥 Exception chargement profil:', error);
+      
+      // Créer un utilisateur de fallback
       const fallbackUser: User = {
         id: supabaseUser.id,
         username: supabaseUser.email?.split('@')[0] || 'User',
@@ -190,24 +187,21 @@ export const useAuth = () => {
   };
 
   const signUp = async (email: string, password: string, username: string) => {
+    console.log('🔄 Hook signUp appelé pour:', email);
+    setLoading(true);
+    
     try {
-      setLoading(true);
-      
-      // Timeout de sécurité pour le hook
-      const hookTimeout = setTimeout(() => {
-        setLoading(false);
-      }, 25000);
-      
       const { data, error } = await auth.signUp(email, password, username);
       
-      clearTimeout(hookTimeout);
-      
       if (error) {
-        throw error;
+        console.error('❌ Erreur inscription hook:', error);
+        return { data: null, error };
       }
 
+      console.log('✅ Inscription réussie dans le hook');
       return { data, error: null };
     } catch (error: any) {
+      console.error('💥 Exception inscription hook:', error);
       return { data: null, error };
     } finally {
       setLoading(false);
@@ -215,24 +209,21 @@ export const useAuth = () => {
   };
 
   const signIn = async (email: string, password: string) => {
+    console.log('🔄 Hook signIn appelé pour:', email);
+    setLoading(true);
+    
     try {
-      setLoading(true);
-      
-      // Timeout de sécurité pour le hook
-      const hookTimeout = setTimeout(() => {
-        setLoading(false);
-      }, 25000);
-      
       const { data, error } = await auth.signIn(email, password);
       
-      clearTimeout(hookTimeout);
-      
       if (error) {
-        throw error;
+        console.error('❌ Erreur connexion hook:', error);
+        return { data: null, error };
       }
 
+      console.log('✅ Connexion réussie dans le hook');
       return { data, error: null };
     } catch (error: any) {
+      console.error('💥 Exception connexion hook:', error);
       return { data: null, error };
     } finally {
       setLoading(false);
@@ -240,18 +231,22 @@ export const useAuth = () => {
   };
 
   const signOut = async () => {
+    console.log('🔄 Hook signOut appelé');
+    setLoading(true);
+    
     try {
-      setLoading(true);
       const { error } = await auth.signOut();
       
       if (error) {
+        console.error('❌ Erreur déconnexion hook:', error);
         throw error;
       }
 
+      console.log('✅ Déconnexion réussie dans le hook');
       setUser(null);
       setIsAuthenticated(false);
     } catch (error) {
-      console.error('Error signing out:', error);
+      console.error('💥 Exception déconnexion hook:', error);
     } finally {
       setLoading(false);
     }
@@ -276,7 +271,7 @@ export const useAuth = () => {
         setUser(prev => prev ? { ...prev, ...updates } : null);
       }
     } catch (error) {
-      console.error('Error updating profile:', error);
+      console.error('❌ Erreur mise à jour profil:', error);
     }
   };
 
