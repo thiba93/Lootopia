@@ -84,18 +84,30 @@ const Dashboard: React.FC<DashboardProps> = ({ user, treasureHunts, loading = fa
             </div>
           </button>
           
-          <button
-            onClick={onCreateHunt}
-            className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 rounded-xl sm:rounded-2xl p-4 sm:p-6 text-left transition-all transform hover:scale-105"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg sm:text-xl font-semibold text-white mb-2">Créer une chasse</h3>
-                <p className="text-sm sm:text-base text-white/80">Partagez votre créativité avec la communauté</p>
+          {user.role === 'organizer' ? (
+            <button
+              onClick={onCreateHunt}
+              className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 rounded-xl sm:rounded-2xl p-4 sm:p-6 text-left transition-all transform hover:scale-105"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg sm:text-xl font-semibold text-white mb-2">Créer une chasse</h3>
+                  <p className="text-sm sm:text-base text-white/80">Partagez votre créativité avec la communauté</p>
+                </div>
+                <Plus className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
               </div>
-              <Plus className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
+            </button>
+          ) : (
+            <div className="bg-gradient-to-r from-gray-500 to-gray-600 rounded-xl sm:rounded-2xl p-4 sm:p-6 text-left opacity-60">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg sm:text-xl font-semibold text-white mb-2">Créer une chasse</h3>
+                  <p className="text-sm sm:text-base text-white/80">Réservé aux organisateurs</p>
+                </div>
+                <Plus className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
+              </div>
             </div>
-          </button>
+          )}
         </div>
 
         {/* Achievements */}
