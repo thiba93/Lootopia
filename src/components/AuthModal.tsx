@@ -1,28 +1,54 @@
 import React, { useState } from 'react';
 import { X, Mail, Lock, User } from 'lucide-react';
+import { useAuth } from '../hooks/useAuth';
 
 interface AuthModalProps {
   onClose: () => void;
-  onLogin: (email: string, password: string) => void;
 }
 
-const AuthModal: React.FC<AuthModalProps> = ({ onClose, onLogin }) => {
+const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
   const [isLogin, setIsLogin] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
     username: '',
     confirmPassword: ''
   });
+  
+  const { signIn, signUp } = useAuth();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
+    setError(null);
     
-    if (isLogin) {
-      onLogin(formData.email, formData.password);
-    } else {
-      // Handle registration
-      onLogin(formData.email, formData.password);
+    try {
+      if (isLogin) {
+        const { error } = await signIn(formData.email, formData.password);
+        if (error) {
+          setError(error.message);
+          return;
+        }
+      } else {
+        if (formData.password !== formData.confirmPassword) {
+          setError('Les mots de passe ne correspondent pas');
+          return;
+        }
+        
+        const { error } = await signUp(formData.email, formData.password, formData.username);
+        if (error) {
+          setError(error.message);
+          return;
+        }
+      }
+      
+      onClose();
+    } catch (err: any) {
+      setError(err.message || 'Une erreur est survenue');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -47,6 +73,12 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose, onLogin }) => {
             <X className="w-6 h-6" />
           </button>
         </div>
+
+        {error && (
+          <div className="mb-4 p-3 bg-red-500/20 border border-red-500/30 rounded-lg text-red-200 text-sm">
+            {error}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {!isLogin && (
@@ -107,9 +139,10 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose, onLogin }) => {
 
           <button
             type="submit"
-            className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-3 rounded-lg font-semibold hover:from-purple-600 hover:to-pink-600 transition-all"
+            disabled={loading}
+            className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-3 rounded-lg font-semibold hover:from-purple-600 hover:to-pink-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isLogin ? 'Se connecter' : 'S\'inscrire'}
+            {loading ? 'Chargement...' : (isLogin ? 'Se connecter' : 'S\'inscrire')}
           </button>
         </form>
 
@@ -120,10 +153,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose, onLogin }) => {
           >
             {isLogin ? 'Pas de compte ? Inscrivez-vous' : 'Déjà un compte ? Connectez-vous'}
           </button>
-        </div>
-
-        <div className="mt-4 text-center text-white/60 text-sm">
-          <p>Demo: utilisez n'importe quelle email/mot de passe</p>
         </div>
       </div>
     </div>

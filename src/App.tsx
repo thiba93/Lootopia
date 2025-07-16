@@ -8,107 +8,123 @@ import Profile from './components/Profile';
 import AuthModal from './components/AuthModal';
 import NotificationSystem from './components/NotificationSystem';
 import ResponsiveNavigation from './components/ResponsiveNavigation';
-import { TreasureHunt, User, Notification, Achievement } from './types';
-import { mockTreasureHunts, mockUser } from './data/mockData';
-import { calculateLevel } from './utils/achievements';
+import { TreasureHunt, Notification, Achievement } from './types';
+import { useAuth } from './hooks/useAuth';
+import { useTreasureHunts } from './hooks/useTreasureHunts';
+import { db } from './lib/supabase';
 
 type Page = 'home' | 'dashboard' | 'map' | 'create' | 'profile';
 
 function App() {
   const [currentPage, setCurrentPage] = useState<Page>('home');
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
-  const [treasureHunts, setTreasureHunts] = useState<TreasureHunt[]>(mockTreasureHunts);
   const [selectedHunt, setSelectedHunt] = useState<TreasureHunt | null>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  
+  const { user, isAuthenticated, loading: authLoading, signOut } = useAuth();
+  const { treasureHunts, loading: huntsLoading, createTreasureHunt } = useTreasureHunts();
 
   useEffect(() => {
-    // Simulate checking for existing session
-    const savedUser = localStorage.getItem('lootopia_user');
-    if (savedUser) {
-      try {
-        const parsedUser = JSON.parse(savedUser);
-        if (parsedUser && typeof parsedUser === 'object' && parsedUser.username) {
-          setUser(parsedUser);
-          setIsAuthenticated(true);
-          
-          // Load notifications
-          const savedNotifications = localStorage.getItem('lootopia_notifications');
-          if (savedNotifications) {
-            setNotifications(JSON.parse(savedNotifications));
-          }
-        } else {
-          // Invalid user data, clean up
-          localStorage.removeItem('lootopia_user');
-          setUser(null);
-          setIsAuthenticated(false);
-        }
-      } catch (error) {
-        // Invalid JSON, clean up
-        localStorage.removeItem('lootopia_user');
-        setUser(null);
-        setIsAuthenticated(false);
-      }
+    // Load notifications when user is authenticated
+    if (isAuthenticated && user) {
+      loadNotifications();
     }
-  }, []);
+  }, [isAuthenticated, user]);
 
-  const handleLogin = (email: string, password: string) => {
-    // Mock login logic
-    const userData = { ...mockUser, email };
-    setUser(userData);
-    setIsAuthenticated(true);
-    localStorage.setItem('lootopia_user', JSON.stringify(userData));
-    setShowAuthModal(false);
+  const loadNotifications = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await db.getUserNotifications(user.id);
+      if (error) {
+        console.error('Error loading notifications:', error);
+        return;
+      }
+      
+      if (data) {
+        const formattedNotifications: Notification[] = data.map(notif => ({
+          id: notif.id,
+          userId: notif.user_id,
+          type: notif.type as any,
+          title: notif.title,
+          message: notif.message,
+          isRead: notif.is_read,
+          createdAt: notif.created_at,
+          data: notif.data,
+        }));
+        
+        setNotifications(formattedNotifications);
+      }
+    } catch (error) {
+      console.error('Error loading notifications:', error);
+    }
   };
 
   const handleLogout = () => {
-    setUser(null);
-    setIsAuthenticated(false);
-    localStorage.removeItem('lootopia_user');
+    signOut();
     setCurrentPage('home');
     setNotifications([]);
-    localStorage.removeItem('lootopia_notifications');
   };
 
-  const addNotification = (notification: Omit<Notification, 'id' | 'createdAt'>) => {
-    const newNotification: Notification = {
-      ...notification,
-      id: Date.now().toString(),
-      createdAt: new Date().toISOString(),
-    };
+  const addNotification = async (notification: Omit<Notification, 'id' | 'createdAt'>) => {
+    if (!user) return;
     
-    const updatedNotifications = [newNotification, ...notifications];
-    setNotifications(updatedNotifications);
-    localStorage.setItem('lootopia_notifications', JSON.stringify(updatedNotifications));
+    try {
+      const { data, error } = await db.createNotification({
+        user_id: user.id,
+        type: notification.type,
+        title: notification.title,
+        message: notification.message,
+        data: notification.data || {},
+      });
+      
+      if (error) {
+        console.error('Error creating notification:', error);
+        return;
+      }
+      
+      if (data) {
+        const newNotification: Notification = {
+          id: data.id,
+          userId: data.user_id,
+          type: data.type as any,
+          title: data.title,
+          message: data.message,
+          isRead: data.is_read,
+          createdAt: data.created_at,
+          data: data.data,
+        };
+        
+        setNotifications(prev => [newNotification, ...prev]);
+      }
+    } catch (error) {
+      console.error('Error adding notification:', error);
+    }
   };
 
-  const markNotificationAsRead = (id: string) => {
-    const updatedNotifications = notifications.map(n => 
-      n.id === id ? { ...n, isRead: true } : n
-    );
-    setNotifications(updatedNotifications);
-    localStorage.setItem('lootopia_notifications', JSON.stringify(updatedNotifications));
+  const markNotificationAsRead = async (id: string) => {
+    try {
+      const { error } = await db.markNotificationAsRead(id);
+      if (error) {
+        console.error('Error marking notification as read:', error);
+        return;
+      }
+      
+      setNotifications(prev => 
+        prev.map(n => n.id === id ? { ...n, isRead: true } : n)
+      );
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+    }
   };
 
   const clearAllNotifications = () => {
+    // For now, just clear locally. In a real app, you'd want to mark all as read in the database
     setNotifications([]);
-    localStorage.removeItem('lootopia_notifications');
   };
 
   const handleAchievementUnlocked = (achievements: Achievement[]) => {
     if (!user) return;
-    
-    const updatedUser = {
-      ...user,
-      achievements: [...user.achievements, ...achievements],
-      points: user.points + achievements.reduce((sum, a) => sum + a.points, 0),
-    };
-    
-    updatedUser.level = calculateLevel(updatedUser.points);
-    
-    setUser(updatedUser);
-    localStorage.setItem('lootopia_user', JSON.stringify(updatedUser));
     
     // Add notifications for achievements
     achievements.forEach(achievement => {
@@ -120,25 +136,18 @@ function App() {
         isRead: false,
       });
     });
-    
-    // Check for level up
-    if (updatedUser.level > user.level) {
-      addNotification({
-        userId: user.id,
-        type: 'level_up',
-        title: 'Niveau supérieur !',
-        message: `Félicitations ! Vous êtes maintenant niveau ${updatedUser.level}`,
-        isRead: false,
-      });
-    }
   };
-  const handleCreateHunt = (newHunt: Omit<TreasureHunt, 'id' | 'createdAt'>) => {
-    const hunt: TreasureHunt = {
-      ...newHunt,
-      id: Date.now().toString(),
-      createdAt: new Date().toISOString(),
-    };
-    setTreasureHunts([...treasureHunts, hunt]);
+  
+  const handleCreateHunt = async (newHunt: any) => {
+    if (!user) return;
+    
+    const { data: hunt, error } = await createTreasureHunt(newHunt, user.id);
+    
+    if (error) {
+      console.error('Error creating hunt:', error);
+      return;
+    }
+    
     setCurrentPage('dashboard');
     
     if (user) {
@@ -146,7 +155,7 @@ function App() {
         userId: user.id,
         type: 'new_hunt',
         title: 'Chasse créée !',
-        message: `Votre chasse "${hunt.title}" a été publiée avec succès`,
+        message: `Votre chasse "${newHunt.title}" a été publiée avec succès`,
         isRead: false,
       });
     }
@@ -223,6 +232,18 @@ function App() {
 
   const unreadNotificationCount = notifications.filter(n => !n.isRead && n.userId === user?.id).length;
 
+  // Show loading screen while authentication is being checked
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center">
+        <div className="text-center text-white">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+          <p>Chargement...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
       {/* Navigation */}
@@ -297,7 +318,6 @@ function App() {
       {showAuthModal && (
         <AuthModal
           onClose={() => setShowAuthModal(false)}
-          onLogin={handleLogin}
         />
       )}
     </div>
