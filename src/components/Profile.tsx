@@ -82,7 +82,7 @@ const Profile: React.FC<ProfileProps> = ({ user, onBack }) => {
               <div className={`w-12 h-12 bg-gradient-to-r ${stat.color} rounded-xl flex items-center justify-center mx-auto mb-4`}>
                 <stat.icon className="w-6 h-6 text-white" />
               </div>
-              <div className="text-2xl font-bold text-white mb-2">{stats.value}</div>
+              <div className="text-2xl font-bold text-white mb-2">{stat.value}</div>
               <div className="text-white/60 text-sm">{stat.label}</div>
             </div>
           ))}
