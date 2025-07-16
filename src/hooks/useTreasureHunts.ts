@@ -13,104 +13,104 @@ export const useTreasureHunts = () => {
       setLoading(true);
       setError(null);
       
-      // Set a timeout for loading
+      console.log('🔄 Chargement des chasses au trésor...');
+      
+      // Essayer de charger depuis Supabase avec un timeout raisonnable
+      const loadPromise = db.getTreasureHunts();
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Loading timeout')), 8000)
+        setTimeout(() => reject(new Error('Timeout chargement chasses')), 5000)
       );
       
-      const loadPromise = db.getTreasureHunts();
-      
-      const { data, error: fetchError } = await Promise.race([
-        loadPromise,
-        timeoutPromise
-      ]) as any;
-      
-      if (fetchError) {
-        console.error('Error fetching treasure hunts:', fetchError);
-        // Use mock data as fallback
-        console.log('Using mock data as fallback');
-        setTreasureHunts(mockTreasureHunts);
-        setError(null); // Don't show error if we have fallback data
-        return;
-      }
+      try {
+        const { data, error: fetchError } = await Promise.race([
+          loadPromise,
+          timeoutPromise
+        ]) as any;
+        
+        if (fetchError) {
+          console.warn('⚠️ Erreur Supabase, utilisation des données mockées:', fetchError);
+          setTreasureHunts(mockTreasureHunts);
+          setError(null);
+          return;
+        }
 
-      if (data && Array.isArray(data)) {
-        const formattedHunts: TreasureHunt[] = data.map(hunt => ({
-          id: hunt.id,
-          title: hunt.title,
-          description: hunt.description,
-          difficulty: hunt.difficulty,
-          category: hunt.category,
-          location: {
-            lat: Number(hunt.location_lat) || 48.8566,
-            lng: Number(hunt.location_lng) || 2.3522,
-            address: hunt.location_address || 'Paris, France',
-          },
-          clues: hunt.clues?.map(clue => ({
-            id: clue.id,
-            order: clue.order_number,
-            text: clue.text,
-            hint: clue.hint,
-            type: clue.type,
-            answer: clue.answer,
+        if (data && Array.isArray(data) && data.length > 0) {
+          console.log('✅ Chasses chargées depuis Supabase:', data.length);
+          
+          const formattedHunts: TreasureHunt[] = data.map(hunt => ({
+            id: hunt.id,
+            title: hunt.title,
+            description: hunt.description,
+            difficulty: hunt.difficulty,
+            category: hunt.category,
             location: {
-              lat: Number(clue.location_lat) || 48.8566,
-              lng: Number(clue.location_lng) || 2.3522,
+              lat: Number(hunt.location_lat) || 48.8566,
+              lng: Number(hunt.location_lng) || 2.3522,
+              address: hunt.location_address || 'Paris, France',
             },
-            points: clue.points || 100,
-            radius: clue.radius || 50,
-          })) || [],
-          rewards: hunt.rewards?.map(reward => ({
-            id: reward.id,
-            name: reward.name,
-            description: reward.description,
-            type: reward.type,
-            value: reward.value || 100,
-            icon: reward.icon || '🏆',
-            rarity: reward.rarity,
-          })) || [],
-          participants: hunt.participants_count || 0,
-          maxParticipants: hunt.max_participants || 50,
-          duration: hunt.duration || 60,
-          createdBy: hunt.created_by || 'system',
-          createdAt: hunt.created_at,
-          status: hunt.status,
-          image: hunt.image_url,
-          rating: Number(hunt.rating) || 0,
-          reviews: [],
-          tags: hunt.tags || [],
-          isPublic: hunt.is_public !== false,
-        }));
+            clues: hunt.clues?.map(clue => ({
+              id: clue.id,
+              order: clue.order_number,
+              text: clue.text,
+              hint: clue.hint,
+              type: clue.type,
+              answer: clue.answer,
+              location: {
+                lat: Number(clue.location_lat) || 48.8566,
+                lng: Number(clue.location_lng) || 2.3522,
+              },
+              points: clue.points || 100,
+              radius: clue.radius || 50,
+            })) || [],
+            rewards: hunt.rewards?.map(reward => ({
+              id: reward.id,
+              name: reward.name,
+              description: reward.description,
+              type: reward.type,
+              value: reward.value || 100,
+              icon: reward.icon || '🏆',
+              rarity: reward.rarity,
+            })) || [],
+            participants: hunt.participants_count || 0,
+            maxParticipants: hunt.max_participants || 50,
+            duration: hunt.duration || 60,
+            createdBy: hunt.created_by || 'system',
+            createdAt: hunt.created_at,
+            status: hunt.status,
+            image: hunt.image_url,
+            rating: Number(hunt.rating) || 0,
+            reviews: [],
+            tags: hunt.tags || [],
+            isPublic: hunt.is_public !== false,
+          }));
 
-        setTreasureHunts(formattedHunts);
-      } else {
-        // Use mock data if no data returned
-        console.log('No data returned, using mock data');
+          setTreasureHunts(formattedHunts);
+        } else {
+          console.log('ℹ️ Aucune donnée Supabase, utilisation des données mockées');
+          setTreasureHunts(mockTreasureHunts);
+        }
+      } catch (timeoutError) {
+        console.warn('⚠️ Timeout Supabase, utilisation des données mockées');
         setTreasureHunts(mockTreasureHunts);
+        setError(null);
       }
     } catch (err: any) {
-      console.error('Error loading treasure hunts:', err);
-      // Use mock data as fallback
-      console.log('Error occurred, using mock data as fallback');
+      console.warn('⚠️ Erreur générale, utilisation des données mockées:', err);
       setTreasureHunts(mockTreasureHunts);
-      setError(null); // Don't show error if we have fallback data
+      setError(null);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    // Add a small delay to prevent immediate loading issues
-    const timer = setTimeout(() => {
-      loadTreasureHunts();
-    }, 500);
-
-    return () => clearTimeout(timer);
+    // Charger immédiatement sans délai
+    loadTreasureHunts();
   }, []);
 
   const createTreasureHunt = async (huntData: any, userId: string) => {
     try {
-      // Create the hunt
+      // Créer la chasse
       const { data: hunt, error: huntError } = await db.createTreasureHunt({
         title: huntData.title,
         description: huntData.description,
@@ -130,7 +130,7 @@ export const useTreasureHunts = () => {
         throw huntError;
       }
 
-      // Reload hunts to get the updated list
+      // Recharger les chasses pour obtenir la liste mise à jour
       await loadTreasureHunts();
       
       return { data: hunt, error: null };

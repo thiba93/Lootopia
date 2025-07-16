@@ -56,7 +56,8 @@ export const auth = {
         options: {
           data: {
             username,
-          }
+          },
+          emailRedirectTo: undefined // Désactiver la confirmation email
         }
       });
       
@@ -70,12 +71,6 @@ export const auth = {
       if (error) {
         console.error('❌ Erreur inscription:', error);
         return { data: null, error };
-      }
-      
-      // Si l'inscription réussit mais qu'il n'y a pas de session, on essaie de se connecter
-      if (data.user && !data.session) {
-        console.log('🔄 Inscription réussie, tentative de connexion automatique...');
-        return await auth.signIn(email, password);
       }
       
       return { data, error: null };

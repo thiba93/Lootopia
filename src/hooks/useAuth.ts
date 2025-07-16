@@ -15,7 +15,7 @@ export const useAuth = () => {
       console.log('🔄 Initialisation de l\'authentification...');
       
       try {
-        // Récupérer la session actuelle
+        // Récupérer la session actuelle sans timeout
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (error) {
@@ -32,8 +32,10 @@ export const useAuth = () => {
         });
 
         if (session?.user && mounted) {
+          console.log('✅ Session existante trouvée, chargement du profil...');
           await loadUserProfile(session.user);
         } else if (mounted) {
+          console.log('ℹ️ Aucune session existante');
           setLoading(false);
         }
       } catch (error) {
@@ -64,6 +66,7 @@ export const useAuth = () => {
           setLoading(false);
         } else if (event === 'TOKEN_REFRESHED') {
           console.log('🔄 Token rafraîchi');
+          // Ne pas recharger le profil, juste continuer
         } else {
           setLoading(false);
         }
@@ -88,22 +91,19 @@ export const useAuth = () => {
       // Essayer de récupérer le profil existant
       const { data: profile, error } = await db.getUserProfile(supabaseUser.id);
       
-      if (error && error.code !== 'PGRST116') { // PGRST116 = pas trouvé
-        console.error('❌ Erreur chargement profil:', error);
-      }
-
       let userData: User;
 
-      if (profile) {
+      if (profile && !error) {
         console.log('✅ Profil trouvé en base');
         
-        // Charger les achievements
+        // Charger les achievements de manière sécurisée
         let userAchievements: any[] = [];
         try {
           const { data: achievements } = await db.getUserAchievements(supabaseUser.id);
           userAchievements = achievements || [];
+          console.log('📊 Achievements chargés:', userAchievements.length);
         } catch (error) {
-          console.error('⚠️ Erreur chargement achievements:', error);
+          console.warn('⚠️ Erreur chargement achievements (ignorée):', error);
         }
         
         userData = {
@@ -140,11 +140,15 @@ export const useAuth = () => {
           level: 1,
         };
 
-        const { data: createdProfile, error: createError } = await db.createUserProfile(newProfile);
-        
-        if (createError) {
-          console.error('❌ Erreur création profil:', createError);
-          // Continuer avec un profil basique même si la création échoue
+        try {
+          const { data: createdProfile, error: createError } = await db.createUserProfile(newProfile);
+          if (createError) {
+            console.warn('⚠️ Erreur création profil (continuons quand même):', createError);
+          } else {
+            console.log('✅ Nouveau profil créé');
+          }
+        } catch (error) {
+          console.warn('⚠️ Exception création profil (continuons quand même):', error);
         }
 
         userData = {
@@ -166,7 +170,7 @@ export const useAuth = () => {
     } catch (error) {
       console.error('💥 Exception chargement profil:', error);
       
-      // Créer un utilisateur de fallback
+      // Créer un utilisateur de fallback pour ne pas bloquer l'app
       const fallbackUser: User = {
         id: supabaseUser.id,
         username: supabaseUser.email?.split('@')[0] || 'User',
@@ -179,6 +183,7 @@ export const useAuth = () => {
         createdHunts: [],
       };
       
+      console.log('🔄 Utilisation du profil de fallback');
       setUser(fallbackUser);
       setIsAuthenticated(true);
     } finally {
