@@ -1,45 +1,60 @@
 import React from 'react';
-import { Compass, Map, Trophy, Users, Star, ArrowRight, Play } from 'lucide-react';
+import { Compass, Map, Trophy, Users, Star, ArrowRight, Play, Zap, Shield, Globe } from 'lucide-react';
 import { TreasureHunt } from '../types';
 import TreasureHuntCard from './TreasureHuntCard';
+import LoadingSpinner from './LoadingSpinner';
 
 interface HomePageProps {
   treasureHunts: TreasureHunt[];
+  loading?: boolean;
   onJoinHunt: (huntId: string) => void;
   onGetStarted: () => void;
 }
 
-const HomePage: React.FC<HomePageProps> = ({ treasureHunts, onJoinHunt, onGetStarted }) => {
+const HomePage: React.FC<HomePageProps> = ({ treasureHunts, loading = false, onJoinHunt, onGetStarted }) => {
   const stats = [
-    { icon: Map, label: 'Chasses actives', value: '156', color: 'from-blue-500 to-cyan-500' },
-    { icon: Users, label: 'Explorateurs', value: '2.3k', color: 'from-purple-500 to-pink-500' },
-    { icon: Trophy, label: 'Trésors trouvés', value: '847', color: 'from-yellow-500 to-orange-500' },
-    { icon: Star, label: 'Points distribués', value: '45k', color: 'from-green-500 to-emerald-500' }
+    { icon: Map, label: 'Chasses actives', value: treasureHunts.length.toString(), color: 'from-blue-500 to-cyan-500' },
+    { icon: Users, label: 'Explorateurs', value: '2.3k+', color: 'from-purple-500 to-pink-500' },
+    { icon: Trophy, label: 'Trésors trouvés', value: '847+', color: 'from-yellow-500 to-orange-500' },
+    { icon: Star, label: 'Points distribués', value: '45k+', color: 'from-green-500 to-emerald-500' }
   ];
 
   const features = [
     {
-      icon: Map,
+      icon: Globe,
       title: 'Géolocalisation immersive',
-      description: 'Utilisez votre position pour découvrir des trésors cachés autour de vous'
+      description: 'Utilisez votre position pour découvrir des trésors cachés autour de vous',
+      color: 'from-blue-500 to-cyan-500'
     },
     {
       icon: Users,
       title: 'Communauté active',
-      description: 'Rejoignez des milliers d\'explorateurs et créez vos propres aventures'
+      description: 'Rejoignez des milliers d\'explorateurs et créez vos propres aventures',
+      color: 'from-purple-500 to-pink-500'
     },
     {
-      icon: Trophy,
-      title: 'Récompenses exclusives',
-      description: 'Gagnez des points, des badges et débloquez des achievements uniques'
-    }
-  ];
-
-  return (
-    <div className="relative">
-      {/* Hero Section */}
-      <section className="relative min-h-screen flex items-center justify-center overflow-hidden px-4">
-        <div className="absolute inset-0 bg-gradient-to-r from-purple-900/50 to-blue-900/50"></div>
+      icon: Zap,
+      title: 'Expérience temps réel',
+      description: 'Progression sauvegardée, notifications instantanées et défis en direct',
+      color: 'from-yellow-500 to-orange-500'
+    },
+    {
+      icon: Shield,
+      title: 'Sécurisé et fiable',
+      description: 'Vos données sont protégées avec une authentification sécurisée',
+        {loading ? (
+          <LoadingSpinner message="Chargement des chasses au trésor..." />
+        ) : (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
+            {treasureHunts.slice(0, 3).map((hunt) => (
+              <TreasureHuntCard
+                key={hunt.id}
+                hunt={hunt}
+                onJoin={() => onJoinHunt(hunt.id)}
+              />
+            ))}
+          </div>
+        )}
         
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <div className="mb-8">
@@ -50,7 +65,7 @@ const HomePage: React.FC<HomePageProps> = ({ treasureHunts, onJoinHunt, onGetSta
             <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold text-white mb-6">
               Découvrez <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-500">Lootopia</span>
             </h1>
-            <p className="text-lg sm:text-xl text-white/80 max-w-3xl mx-auto mb-8">
+            <p className="text-lg sm:text-xl md:text-2xl text-white/80 max-w-4xl mx-auto mb-8 leading-relaxed">
               Embarquez pour des aventures épiques, résolvez des énigmes captivantes et découvrez des trésors cachés dans le monde réel. L'aventure commence maintenant !
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -72,12 +87,15 @@ const HomePage: React.FC<HomePageProps> = ({ treasureHunts, onJoinHunt, onGetSta
           </div>
         </div>
 
-        {/* Floating Elements */}
-        <div className="absolute top-20 left-4 sm:left-10 animate-bounce">
-          <div className="w-16 h-16 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full opacity-20"></div>
+        {/* Animated Background Elements */}
+        <div className="absolute top-20 left-4 sm:left-10 animate-bounce delay-100">
+          <div className="w-12 sm:w-16 h-12 sm:h-16 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full opacity-20"></div>
         </div>
-        <div className="absolute bottom-20 right-4 sm:right-10 animate-pulse">
-          <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full opacity-30"></div>
+        <div className="absolute bottom-20 right-4 sm:right-10 animate-pulse delay-300">
+          <div className="w-10 sm:w-12 h-10 sm:h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full opacity-30"></div>
+        </div>
+        <div className="absolute top-1/2 left-1/4 animate-ping delay-500">
+          <div className="w-6 h-6 bg-gradient-to-r from-blue-400 to-cyan-400 rounded-full opacity-20"></div>
         </div>
       </section>
 
@@ -111,7 +129,7 @@ const HomePage: React.FC<HomePageProps> = ({ treasureHunts, onJoinHunt, onGetSta
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
             {features.map((feature, index) => (
               <div key={index} className="bg-white/5 backdrop-blur-sm rounded-2xl p-8 border border-white/10 hover:bg-white/10 transition-all">
-                <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl flex items-center justify-center mb-6">
+                <div className={`w-12 h-12 bg-gradient-to-r ${feature.color} rounded-xl flex items-center justify-center mb-6`}>
                   <feature.icon className="w-6 h-6 text-white" />
                 </div>
                 <h3 className="text-lg sm:text-xl font-semibold text-white mb-4">{feature.title}</h3>
