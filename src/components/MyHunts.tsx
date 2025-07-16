@@ -233,6 +233,7 @@ const MyHunts: React.FC<MyHuntsProps> = ({ user, onBack, onJoinHunt }) => {
             disabled={tab.id === 'created' && user.role !== 'organizer'}
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
+          <button
             onClick={onBack}
             className="flex items-center space-x-2 text-white/70 hover:text-white transition-colors"
           >
