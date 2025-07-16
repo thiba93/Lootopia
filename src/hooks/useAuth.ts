@@ -8,7 +8,7 @@ export const useAuth = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
-    console.log('🔄 Initialisation useAuth...');
+    console.log('🔄 Initialisation de l\'authentification...');
     
     // Vérifier s'il y a un utilisateur connecté
     const checkCurrentUser = async () => {
@@ -27,11 +27,13 @@ export const useAuth = () => {
 
     // Écouter les changements d'authentification
     const { data: { subscription } } = auth.onAuthStateChange(async (event, session) => {
-      console.log('🔔 Auth state change:', { event, user: session?.user?.id });
+      console.log('🔔 Changement d\'état auth:', { event, userId: session?.user?.id });
       
       if (event === 'SIGNED_IN' && session?.user) {
+        console.log('✅ Utilisateur connecté, chargement du profil...');
         await loadUserProfile(session.user);
       } else if (event === 'SIGNED_OUT') {
+        console.log('👋 Utilisateur déconnecté');
         setUser(null);
         setIsAuthenticated(false);
         setLoading(false);
@@ -46,17 +48,37 @@ export const useAuth = () => {
   }, []);
 
   const loadUserProfile = async (supabaseUser: any) => {
-    console.log('🔄 Chargement profil:', supabaseUser.id);
+    console.log('🔄 Chargement profil utilisateur:', supabaseUser.id);
     setLoading(true);
     
     try {
-      // Essayer de récupérer le profil
+      // Essayer de récupérer le profil existant
       const { data: profile, error } = await db.getUserProfile(supabaseUser.id);
       
       let userData: User;
       
       if (profile && !error) {
-        console.log('✅ Profil trouvé');
+        console.log('✅ Profil existant trouvé');
+        
+        // Charger les achievements
+        let achievements: any[] = [];
+        try {
+          const { data: userAchievements } = await db.getUserAchievements(supabaseUser.id);
+          if (userAchievements) {
+            achievements = userAchievements.map((ua: any) => ({
+              id: ua.achievements.id,
+              name: ua.achievements.name,
+              description: ua.achievements.description,
+              icon: ua.achievements.icon,
+              points: ua.achievements.points,
+              rarity: ua.achievements.rarity,
+              unlockedAt: ua.unlocked_at
+            }));
+          }
+        } catch (achievementError) {
+          console.warn('⚠️ Erreur chargement achievements:', achievementError);
+        }
+        
         userData = {
           id: profile.id,
           username: profile.username,
@@ -65,12 +87,12 @@ export const useAuth = () => {
           level: profile.level || 1,
           avatar: profile.avatar_url,
           createdAt: profile.created_at,
-          achievements: [],
+          achievements,
           completedHunts: [],
           createdHunts: [],
         };
       } else {
-        console.log('📝 Création nouveau profil');
+        console.log('📝 Création nouveau profil utilisateur');
         
         const newProfile = {
           id: supabaseUser.id,
@@ -82,7 +104,13 @@ export const useAuth = () => {
           level: 1,
         };
 
-        await db.createUserProfile(newProfile);
+        const { error: createError } = await db.createUserProfile(newProfile);
+        
+        if (createError) {
+          console.error('❌ Erreur création profil:', createError);
+        } else {
+          console.log('✅ Profil créé avec succès');
+        }
         
         userData = {
           id: supabaseUser.id,
@@ -97,7 +125,7 @@ export const useAuth = () => {
         };
       }
 
-      console.log('✅ Profil chargé:', userData.username);
+      console.log('✅ Profil utilisateur chargé:', userData.username);
       setUser(userData);
       setIsAuthenticated(true);
     } catch (error) {
@@ -124,7 +152,7 @@ export const useAuth = () => {
   };
 
   const signUp = async (email: string, password: string, username: string) => {
-    console.log('🔄 Hook signUp:', email);
+    console.log('🔄 Tentative d\'inscription:', { email, username });
     setLoading(true);
     
     try {
@@ -132,27 +160,23 @@ export const useAuth = () => {
       
       if (error) {
         console.error('❌ Erreur inscription:', error);
-        setLoading(false);
         return { data: null, error };
       }
 
       console.log('✅ Inscription réussie');
       
-      // Charger le profil immédiatement après inscription
-      if (data.user) {
-        await loadUserProfile(data.user);
-      }
-      
+      // Le profil sera chargé automatiquement via onAuthStateChange
       return { data, error: null };
     } catch (error: any) {
       console.error('💥 Exception inscription:', error);
-      setLoading(false);
       return { data: null, error: { message: error.message } };
+    } finally {
+      setLoading(false);
     }
   };
 
   const signIn = async (email: string, password: string) => {
-    console.log('🔄 Hook signIn:', email);
+    console.log('🔄 Tentative de connexion:', email);
     setLoading(true);
     
     try {
@@ -160,27 +184,23 @@ export const useAuth = () => {
       
       if (error) {
         console.error('❌ Erreur connexion:', error);
-        setLoading(false);
         return { data: null, error };
       }
 
       console.log('✅ Connexion réussie');
       
-      // Charger le profil immédiatement après connexion
-      if (data.user) {
-        await loadUserProfile(data.user);
-      }
-      
+      // Le profil sera chargé automatiquement via onAuthStateChange
       return { data, error: null };
     } catch (error: any) {
       console.error('💥 Exception connexion:', error);
-      setLoading(false);
       return { data: null, error: { message: error.message } };
+    } finally {
+      setLoading(false);
     }
   };
 
   const signOut = async () => {
-    console.log('🔄 Hook signOut');
+    console.log('🔄 Déconnexion...');
     setLoading(true);
     
     try {

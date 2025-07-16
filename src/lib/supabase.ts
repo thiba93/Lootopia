@@ -7,89 +7,37 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 console.log('🔍 Supabase Config:', {
   url: supabaseUrl ? 'Present' : 'Missing',
   key: supabaseAnonKey ? 'Present' : 'Missing',
-  urlValue: supabaseUrl,
-  keyLength: supabaseAnonKey?.length
+  urlValue: supabaseUrl
 });
 
-// Créer un client mock si les variables d'environnement manquent
-let supabase: any;
-let isSupabaseAvailable = false;
-
-if (supabaseUrl && supabaseAnonKey) {
-  try {
-    supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
-      auth: {
-        autoRefreshToken: true,
-        persistSession: true,
-        detectSessionInUrl: false,
-        flowType: 'implicit'
-      }
-    });
-    isSupabaseAvailable = true;
-    console.log('✅ Supabase client créé avec succès');
-  } catch (error) {
-    console.error('❌ Erreur création client Supabase:', error);
-    isSupabaseAvailable = false;
+// Créer le client Supabase
+export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: false,
+    flowType: 'implicit'
   }
-} else {
-  console.warn('⚠️ Variables Supabase manquantes, mode mock activé');
-  isSupabaseAvailable = false;
-}
+});
 
-// Mock users storage pour le mode hors ligne
-const mockUsers = new Map();
-let currentMockUser: any = null;
+export const isSupabaseAvailable = !!(supabaseUrl && supabaseAnonKey);
 
 // Helper functions pour l'authentification
 export const auth = {
   signUp: async (email: string, password: string, username: string) => {
-    console.log('🔄 Tentative d\'inscription:', { email, username });
-    
-    if (!isSupabaseAvailable) {
-      console.log('📝 Mode mock - Création utilisateur local');
-      
-      // Simuler un délai
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Vérifier si l'utilisateur existe déjà
-      if (mockUsers.has(email)) {
-        return { 
-          data: null, 
-          error: { message: 'Un utilisateur avec cet email existe déjà' } 
-        };
-      }
-      
-      // Créer un utilisateur mock
-      const mockUser = {
-        id: `mock-${Date.now()}`,
-        email,
-        user_metadata: { username },
-        created_at: new Date().toISOString()
-      };
-      
-      mockUsers.set(email, { user: mockUser, password });
-      currentMockUser = mockUser;
-      
-      console.log('✅ Utilisateur mock créé:', mockUser.id);
-      return { 
-        data: { 
-          user: mockUser, 
-          session: { user: mockUser, access_token: 'mock-token' } 
-        }, 
-        error: null 
-      };
-    }
+    console.log('🔄 Inscription Supabase:', { email, username });
     
     try {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          data: { username }
+          data: { username },
+          emailRedirectTo: undefined // Pas de confirmation email
         }
       });
       
-      console.log('📝 Résultat inscription Supabase:', { 
+      console.log('📝 Résultat inscription:', { 
         success: !error, 
         user: data.user?.id,
         error: error?.message 
@@ -106,33 +54,7 @@ export const auth = {
   },
 
   signIn: async (email: string, password: string) => {
-    console.log('🔄 Tentative de connexion:', email);
-    
-    if (!isSupabaseAvailable) {
-      console.log('📝 Mode mock - Vérification utilisateur local');
-      
-      // Simuler un délai
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const mockUserData = mockUsers.get(email);
-      if (!mockUserData || mockUserData.password !== password) {
-        return { 
-          data: null, 
-          error: { message: 'Email ou mot de passe incorrect' } 
-        };
-      }
-      
-      currentMockUser = mockUserData.user;
-      console.log('✅ Connexion mock réussie:', currentMockUser.id);
-      
-      return { 
-        data: { 
-          user: currentMockUser, 
-          session: { user: currentMockUser, access_token: 'mock-token' } 
-        }, 
-        error: null 
-      };
-    }
+    console.log('🔄 Connexion Supabase:', email);
     
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -140,7 +62,7 @@ export const auth = {
         password
       });
       
-      console.log('📝 Résultat connexion Supabase:', { 
+      console.log('📝 Résultat connexion:', { 
         success: !error, 
         user: data.user?.id,
         error: error?.message 
@@ -157,13 +79,7 @@ export const auth = {
   },
 
   signOut: async () => {
-    console.log('🔄 Déconnexion...');
-    
-    if (!isSupabaseAvailable) {
-      currentMockUser = null;
-      console.log('✅ Déconnexion mock réussie');
-      return { error: null };
-    }
+    console.log('🔄 Déconnexion Supabase...');
     
     try {
       const { error } = await supabase.auth.signOut();
@@ -176,10 +92,6 @@ export const auth = {
   },
 
   getCurrentUser: async () => {
-    if (!isSupabaseAvailable) {
-      return { user: currentMockUser, error: null };
-    }
-    
     try {
       const { data: { user }, error } = await supabase.auth.getUser();
       return { user, error };
@@ -189,40 +101,14 @@ export const auth = {
   },
 
   onAuthStateChange: (callback: (event: string, session: any) => void) => {
-    if (!isSupabaseAvailable) {
-      // Mock auth state change
-      return {
-        data: {
-          subscription: {
-            unsubscribe: () => console.log('Mock auth listener unsubscribed')
-          }
-        }
-      };
-    }
-    
     return supabase.auth.onAuthStateChange(callback);
   }
 };
 
-// Helper functions pour la base de données (avec fallbacks mock)
+// Helper functions pour la base de données
 export const db = {
   getUserProfile: async (userId: string) => {
-    if (!isSupabaseAvailable) {
-      // Retourner un profil mock
-      return {
-        data: {
-          id: userId,
-          username: currentMockUser?.user_metadata?.username || 'User',
-          email: currentMockUser?.email || 'user@example.com',
-          points: 0,
-          level: 1,
-          avatar_url: null,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        },
-        error: null
-      };
-    }
+    console.log('🔄 Récupération profil utilisateur:', userId);
     
     try {
       const { data, error } = await supabase
@@ -230,16 +116,17 @@ export const db = {
         .select('*')
         .eq('id', userId)
         .single();
+      
+      console.log('📝 Profil récupéré:', { found: !!data, error: error?.message });
       return { data, error };
     } catch (error) {
+      console.error('💥 Erreur récupération profil:', error);
       return { data: null, error };
     }
   },
 
   createUserProfile: async (profile: any) => {
-    if (!isSupabaseAvailable) {
-      return { data: profile, error: null };
-    }
+    console.log('🔄 Création profil utilisateur:', profile.username);
     
     try {
       const { data, error } = await supabase
@@ -247,17 +134,32 @@ export const db = {
         .insert(profile)
         .select()
         .single();
+      
+      console.log('📝 Profil créé:', { success: !error, error: error?.message });
+      return { data, error };
+    } catch (error) {
+      console.error('💥 Erreur création profil:', error);
+      return { data: null, error };
+    }
+  },
+
+  updateUserProfile: async (userId: string, updates: any) => {
+    try {
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .update(updates)
+        .eq('id', userId)
+        .select()
+        .single();
+      
       return { data, error };
     } catch (error) {
       return { data: null, error };
     }
   },
 
-  // Autres méthodes de base de données avec fallbacks similaires...
   getTreasureHunts: async () => {
-    if (!isSupabaseAvailable) {
-      return { data: [], error: null };
-    }
+    console.log('🔄 Chargement chasses au trésor...');
     
     try {
       const { data, error } = await supabase
@@ -271,11 +173,129 @@ export const db = {
         .eq('status', 'active')
         .eq('is_public', true)
         .order('created_at', { ascending: false });
+      
+      console.log('📝 Chasses chargées:', { count: data?.length || 0, error: error?.message });
+      return { data, error };
+    } catch (error) {
+      console.error('💥 Erreur chargement chasses:', error);
+      return { data: null, error };
+    }
+  },
+
+  createTreasureHunt: async (huntData: any) => {
+    try {
+      const { data, error } = await supabase
+        .from('treasure_hunts')
+        .insert(huntData)
+        .select()
+        .single();
+      
+      return { data, error };
+    } catch (error) {
+      return { data: null, error };
+    }
+  },
+
+  getGameSession: async (userId: string, huntId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('game_sessions')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('hunt_id', huntId)
+        .eq('status', 'active')
+        .single();
+      
+      return { data, error };
+    } catch (error) {
+      return { data: null, error };
+    }
+  },
+
+  createGameSession: async (sessionData: any) => {
+    try {
+      const { data, error } = await supabase
+        .from('game_sessions')
+        .insert(sessionData)
+        .select()
+        .single();
+      
+      return { data, error };
+    } catch (error) {
+      return { data: null, error };
+    }
+  },
+
+  updateGameSession: async (sessionId: string, updates: any) => {
+    try {
+      const { data, error } = await supabase
+        .from('game_sessions')
+        .update(updates)
+        .eq('id', sessionId)
+        .select()
+        .single();
+      
+      return { data, error };
+    } catch (error) {
+      return { data: null, error };
+    }
+  },
+
+  getUserNotifications: async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(50);
+      
+      return { data, error };
+    } catch (error) {
+      return { data: null, error };
+    }
+  },
+
+  createNotification: async (notificationData: any) => {
+    try {
+      const { data, error } = await supabase
+        .from('notifications')
+        .insert(notificationData)
+        .select()
+        .single();
+      
+      return { data, error };
+    } catch (error) {
+      return { data: null, error };
+    }
+  },
+
+  markNotificationAsRead: async (notificationId: string) => {
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .update({ is_read: true })
+        .eq('id', notificationId);
+      
+      return { error };
+    } catch (error) {
+      return { error };
+    }
+  },
+
+  getUserAchievements: async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('user_achievements')
+        .select(`
+          *,
+          achievements(*)
+        `)
+        .eq('user_id', userId);
+      
       return { data, error };
     } catch (error) {
       return { data: null, error };
     }
   }
 };
-
-export { supabase, isSupabaseAvailable };

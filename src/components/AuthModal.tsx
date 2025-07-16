@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Mail, Lock, User, Eye, EyeOff, AlertCircle, CheckCircle } from 'lucide-react';
+import { X, Mail, Lock, User, Eye, EyeOff, AlertCircle, CheckCircle, Loader } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
 interface AuthModalProps {
@@ -58,7 +58,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
         
         if (error) {
           console.error('❌ Erreur connexion:', error);
-          setError(error.message || 'Erreur de connexion');
+          setError(error.message || 'Email ou mot de passe incorrect');
           return;
         }
         
@@ -71,7 +71,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
         
         if (error) {
           console.error('❌ Erreur inscription:', error);
-          setError(error.message || 'Erreur d\'inscription');
+          setError(error.message || 'Erreur lors de l\'inscription');
           return;
         }
         
@@ -105,6 +105,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
           <button
             onClick={onClose}
             className="text-white/70 hover:text-white transition-colors"
+            disabled={loading}
           >
             <X className="w-6 h-6" />
           </button>
@@ -211,7 +212,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
           >
             {loading ? (
               <div className="flex items-center justify-center space-x-2">
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                <Loader className="w-4 h-4 animate-spin" />
                 <span>{isLogin ? 'Connexion...' : 'Inscription...'}</span>
               </div>
             ) : (
@@ -240,10 +241,9 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
           </button>
         </div>
 
-        {/* Mode de fonctionnement */}
         <div className="mt-4 text-center">
           <p className="text-white/40 text-xs">
-            Mode de démonstration - Authentification locale
+            Connecté à Supabase - Base de données réelle
           </p>
         </div>
       </div>
