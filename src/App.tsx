@@ -5,6 +5,7 @@ import HomePage from './components/HomePage';
 import Dashboard from './components/Dashboard';
 import ImprovedTreasureHuntMap from './components/ImprovedTreasureHuntMap';
 import CreateHunt from './components/CreateHunt';
+import MyHunts from './components/MyHunts';
 import Profile from './components/Profile';
 import AuthModal from './components/AuthModal';
 import NotificationSystem from './components/NotificationSystem';
@@ -17,7 +18,7 @@ import { useTreasureHunts } from './hooks/useTreasureHunts';
 import { useToast } from './hooks/useToast';
 import { supabase } from './lib/supabase';
 
-type Page = 'home' | 'dashboard' | 'map' | 'create' | 'profile';
+type Page = 'home' | 'dashboard' | 'map' | 'create' | 'profile' | 'my-hunts';
 
 function AppContent() {
   const [currentPage, setCurrentPage] = useState<Page>('home');
@@ -244,6 +245,14 @@ function AppContent() {
           <CreateHunt 
             onCreateHunt={handleCreateHunt}
             onBack={() => setCurrentPage('dashboard')}
+          />
+        );
+      case 'my-hunts':
+        return (
+          <MyHunts 
+            user={user!}
+            onBack={() => setCurrentPage('dashboard')}
+            onJoinHunt={handleJoinHunt}
           />
         );
       case 'profile':

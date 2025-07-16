@@ -89,6 +89,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           id: profile.id,
           username: profile.username,
           email: profile.email,
+          role: profile.role || 'player',
           points: profile.points || 0,
           level: profile.level || 1,
           avatar: profile.avatar_url,
@@ -96,6 +97,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           achievements: [],
           completedHunts: [],
           createdHunts: [],
+          activeHunts: [],
         };
         
         setUser(userData);

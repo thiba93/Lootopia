@@ -2,6 +2,7 @@ export interface User {
   id: string;
   username: string;
   email: string;
+  role: 'player' | 'organizer';
   points: number;
   level: number;
   achievements: Achievement[];
@@ -9,6 +10,7 @@ export interface User {
   avatar?: string;
   completedHunts: string[];
   createdHunts: string[];
+  activeHunts: string[]; // Chasses en cours
 }
 
 export interface Achievement {

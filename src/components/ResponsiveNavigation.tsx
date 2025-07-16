@@ -27,8 +27,8 @@ const ResponsiveNavigation: React.FC<ResponsiveNavigationProps> = ({
   const navigationItems = [
     { id: 'home', label: 'Accueil', icon: Home, show: true },
     { id: 'dashboard', label: 'Tableau de bord', icon: Trophy, show: isAuthenticated },
-    { id: 'map', label: 'Carte', icon: Map, show: isAuthenticated, disabled: !selectedHunt },
-    { id: 'create', label: 'Créer', icon: Plus, show: isAuthenticated },
+    { id: 'my-hunts', label: 'Mes chasses', icon: Map, show: isAuthenticated },
+    { id: 'create', label: 'Créer', icon: Plus, show: isAuthenticated && user?.role === 'organizer' },
   ];
 
   const handleNavigation = (pageId: string) => {

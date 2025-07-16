@@ -6,6 +6,7 @@ import { useGeolocation } from '../hooks/useGeolocation';
 import { calculateDistance, isWithinRadius, formatDistance } from '../utils/distance';
 import { checkAchievements } from '../utils/achievements';
 import LoadingSpinner from './LoadingSpinner';
+import InteractiveMap from './InteractiveMap';
 
 interface ImprovedTreasureHuntMapProps {
   hunt: TreasureHunt;
@@ -247,14 +248,9 @@ const ImprovedTreasureHuntMap: React.FC<ImprovedTreasureHuntMapProps> = ({
         </div>
 
         <div className="grid lg:grid-cols-2 gap-6 lg:gap-8">
-          {/* Location & Distance */}
-          <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10">
-            <h2 className="text-xl font-semibold text-white mb-4 flex items-center">
-              <Navigation className="w-5 h-5 mr-2" />
-              Localisation
-            </h2>
-            
-            {locationError ? (
+          {/* Interactive Map */}
+          {locationError ? (
+            <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10">
               <div className="text-center py-8">
                 <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
                   <AlertTriangle className="w-8 h-8 text-red-400" />
@@ -268,38 +264,22 @@ const ImprovedTreasureHuntMap: React.FC<ImprovedTreasureHuntMapProps> = ({
                   Réessayer
                 </button>
               </div>
-            ) : !latitude || !longitude ? (
+            </div>
+          ) : !latitude || !longitude ? (
+            <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10">
               <LoadingSpinner message="Localisation en cours..." />
-            ) : (
-              <div className="text-center">
-                <div className="bg-white/10 rounded-xl h-40 sm:h-48 flex items-center justify-center mb-4 relative overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 to-purple-500/20"></div>
-                  <div className="relative z-10 text-center">
-                    <Compass className="w-12 sm:w-16 h-12 sm:h-16 mx-auto mb-4 text-white/60 animate-pulse" />
-                    <p className="text-white/80">Carte interactive</p>
-                  </div>
-                </div>
-                
-                {currentClue && (
-                  <div className="space-y-3">
-                    <div className="text-white/60 mb-2 text-sm">Distance jusqu'à l'indice</div>
-                    <div className="text-xl sm:text-2xl font-bold text-white">
-                      {getDistanceToClue() ? formatDistance(getDistanceToClue()!) : 'Calcul...'}
-                    </div>
-                    
-                    {isNearClue() && (
-                      <div className="bg-green-500/20 border border-green-500/30 rounded-lg p-3 animate-pulse">
-                        <div className="flex items-center justify-center space-x-2 text-green-400">
-                          <CheckCircle className="w-5 h-5" />
-                          <span className="font-medium">Vous êtes à proximité !</span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+            </div>
+          ) : (
+            <InteractiveMap
+              hunt={hunt}
+              userLocation={{ lat: latitude, lng: longitude }}
+              currentClue={currentClue}
+              completedClues={session.completedClues}
+              onClueClick={(clue) => {
+                console.log('Indice cliqué:', clue.text);
+              }}
+            />
+          )}
 
           {/* Current Clue */}
           <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10">

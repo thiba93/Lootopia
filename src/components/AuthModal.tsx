@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Mail, Lock, User, Eye, EyeOff, AlertCircle, CheckCircle, Loader } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import RoleSelector from './RoleSelector';
 
 interface AuthModalProps {
   onClose: () => void;
@@ -12,6 +13,8 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [showRoleSelector, setShowRoleSelector] = useState(false);
+  const [selectedRole, setSelectedRole] = useState<'player' | 'organizer'>('player');
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -77,10 +80,8 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
         const result = await signUp(formData.email, formData.password, formData.username);
         
         if (result.success) {
-          setSuccess('Inscription réussie ! Vous êtes maintenant connecté.');
-          setTimeout(() => {
-            onClose();
-          }, 1500);
+          setSuccess('Inscription réussie !');
+          setShowRoleSelector(true);
         } else {
           setError(result.error || 'Erreur d\'inscription');
         }
@@ -90,6 +91,18 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleRoleSelect = async (role: 'player' | 'organizer') => {
+    setSelectedRole(role);
+    setShowRoleSelector(false);
+    
+    // Mettre à jour le rôle dans la base de données
+    // Cette logique sera ajoutée plus tard
+    
+    setTimeout(() => {
+      onClose();
+    }, 500);
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -108,7 +121,12 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <>
+      {showRoleSelector && (
+        <RoleSelector onRoleSelect={handleRoleSelect} />
+      )}
+      
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 sm:p-8 w-full max-w-md border border-white/20 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold text-white">
@@ -241,7 +259,8 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
           </p>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 };
 

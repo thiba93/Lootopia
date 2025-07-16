@@ -71,28 +71,38 @@ const Dashboard: React.FC<DashboardProps> = ({ user, treasureHunts, loading = fa
         {/* Quick Actions */}
         <div className="grid sm:grid-cols-2 gap-4 sm:gap-6 mb-8">
           <button
-            onClick={onCreateHunt}
-            className="bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl sm:rounded-2xl p-4 sm:p-6 text-left hover:from-green-600 hover:to-emerald-600 transition-all transform hover:scale-105"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg sm:text-xl font-semibold text-white mb-2">Créer une chasse</h3>
-                <p className="text-sm sm:text-base text-white/80">Partagez votre créativité avec la communauté</p>
-              </div>
-              <Plus className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
-            </div>
-          </button>
-          
-          <button 
-            onClick={() => alert('Fonctionnalité de carte globale à venir !')}
+            onClick={() => setCurrentPage('my-hunts')}
             className="bg-gradient-to-r from-blue-500 to-cyan-500 rounded-xl sm:rounded-2xl p-4 sm:p-6 text-left hover:from-blue-600 hover:to-cyan-600 transition-all transform hover:scale-105"
           >
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-lg sm:text-xl font-semibold text-white mb-2">Explorer la carte</h3>
-                <p className="text-sm sm:text-base text-white/80">Découvrez les trésors près de vous</p>
+                <h3 className="text-lg sm:text-xl font-semibold text-white mb-2">Mes chasses</h3>
+                <p className="text-sm sm:text-base text-white/80">Suivez vos participations et créations</p>
               </div>
-              <Map className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
+              <Trophy className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
+            </div>
+          </button>
+          
+          <button
+            onClick={onCreateHunt}
+            className={`rounded-xl sm:rounded-2xl p-4 sm:p-6 text-left transition-all transform hover:scale-105 ${
+              user.role === 'organizer' 
+                ? 'bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600' 
+                : 'bg-gradient-to-r from-gray-500 to-gray-600 cursor-not-allowed opacity-50'
+            }`}
+            disabled={user.role !== 'organizer'}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg sm:text-xl font-semibold text-white mb-2">Créer une chasse</h3>
+                <p className="text-sm sm:text-base text-white/80">
+                  {user.role === 'organizer' 
+                    ? 'Partagez votre créativité avec la communauté' 
+                    : 'Réservé aux organisateurs'
+                  }
+                </p>
+              </div>
+              <Plus className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
             </div>
           </button>
         </div>
