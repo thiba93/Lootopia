@@ -15,7 +15,7 @@ import { TreasureHunt, Notification, Achievement } from './types';
 import { useAuth } from './hooks/useAuth';
 import { useTreasureHunts } from './hooks/useTreasureHunts';
 import { useToast } from './hooks/useToast';
-import { db } from './lib/supabase';
+import { supabase } from './lib/supabase';
 
 type Page = 'home' | 'dashboard' | 'map' | 'create' | 'profile';
 
@@ -40,7 +40,13 @@ function App() {
     if (!user) return;
     
     try {
-      const { data, error } = await db.getUserNotifications(user.id);
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(50);
+        
       if (error) {
         console.error('Error loading notifications:', error);
         return;
@@ -75,13 +81,17 @@ function App() {
     if (!user) return;
     
     try {
-      const { data, error } = await db.createNotification({
+      const { data, error } = await supabase
+        .from('notifications')
+        .insert({
         user_id: user.id,
         type: notification.type,
         title: notification.title,
         message: notification.message,
         data: notification.data || {},
-      });
+        })
+        .select()
+        .single();
       
       if (error) {
         console.error('Error creating notification:', error);
@@ -109,7 +119,11 @@ function App() {
 
   const markNotificationAsRead = async (id: string) => {
     try {
-      const { error } = await db.markNotificationAsRead(id);
+      const { error } = await supabase
+        .from('notifications')
+        .update({ is_read: true })
+        .eq('id', id);
+        
       if (error) {
         console.error('Error marking notification as read:', error);
         return;

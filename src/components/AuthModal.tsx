@@ -11,7 +11,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -23,16 +22,12 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Éviter les soumissions multiples
     if (loading) return;
-    
-    console.log('🔄 Soumission formulaire:', { isLogin, email: formData.email });
     
     setError(null);
     setSuccess(null);
     
-    // Validation côté client
+    // Validation
     if (!formData.email || !formData.password) {
       setError('Veuillez remplir tous les champs obligatoires');
       return;
@@ -57,42 +52,25 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
     
     try {
       if (isLogin) {
-        console.log('🔑 Tentative de connexion...');
-        const { error } = await signIn(formData.email, formData.password);
+        const result = await signIn(formData.email, formData.password);
         
-        if (error) {
-          console.error('❌ Erreur connexion:', error);
-          setError(error.message || 'Email ou mot de passe incorrect');
-          return;
+        if (result.success) {
+          setSuccess('Connexion réussie !');
+          setTimeout(() => onClose(), 1000);
+        } else {
+          setError(result.error || 'Erreur de connexion');
         }
-        
-        console.log('✅ Connexion réussie, fermeture modal');
-        setSuccess('Connexion réussie !');
-        
-        // Fermer la modal après un délai
-        setTimeout(() => {
-          onClose();
-        }, 1000);
       } else {
-        console.log('📝 Tentative d\'inscription...');
-        const { error } = await signUp(formData.email, formData.password, formData.username);
+        const result = await signUp(formData.email, formData.password, formData.username);
         
-        if (error) {
-          console.error('❌ Erreur inscription:', error);
-          setError(error.message || 'Erreur lors de l\'inscription');
-          return;
+        if (result.success) {
+          setSuccess('Inscription réussie ! Bienvenue sur Lootopia !');
+          setTimeout(() => onClose(), 1500);
+        } else {
+          setError(result.error || 'Erreur d\'inscription');
         }
-        
-        console.log('✅ Inscription réussie, fermeture modal');
-        setSuccess('Inscription réussie ! Bienvenue sur Lootopia !');
-        
-        // Fermer la modal après un délai
-        setTimeout(() => {
-          onClose();
-        }, 1500);
       }
     } catch (err: any) {
-      console.error('💥 Exception formulaire:', err);
       setError(err.message || 'Une erreur inattendue est survenue');
     }
   };
@@ -102,13 +80,12 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
       ...formData,
       [e.target.name]: e.target.value
     });
-    // Effacer les messages d'erreur/succès quand l'utilisateur tape
     if (error) setError(null);
     if (success) setSuccess(null);
   };
 
   const handleModeSwitch = () => {
-    if (loading) return; // Empêcher le changement pendant le chargement
+    if (loading) return;
     
     setIsLogin(!isLogin);
     setError(null);
@@ -210,24 +187,16 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/40 w-5 h-5 z-10" />
               <input
-                type={showConfirmPassword ? "text" : "password"}
+                type="password"
                 name="confirmPassword"
                 value={formData.confirmPassword}
                 onChange={handleChange}
                 placeholder="Confirmer le mot de passe"
-                className="w-full bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg pl-10 pr-12 py-3 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                className="w-full bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg pl-10 pr-4 py-3 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
                 required={!isLogin}
                 minLength={6}
                 disabled={loading}
               />
-              <button
-                type="button"
-                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-white/40 hover:text-white/60 transition-colors z-10"
-                disabled={loading}
-              >
-                {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-              </button>
             </div>
           )}
 
