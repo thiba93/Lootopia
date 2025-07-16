@@ -10,14 +10,31 @@ export const useAuth = () => {
 
   useEffect(() => {
     let mounted = true;
+    let timeoutId: NodeJS.Timeout;
 
     const initializeAuth = async () => {
       try {
-        // Get initial session
-        const { data: { session }, error } = await supabase.auth.getSession();
+        // Set a maximum loading time of 10 seconds
+        timeoutId = setTimeout(() => {
+          if (mounted) {
+            console.warn('Auth initialization timeout - proceeding without auth');
+            setLoading(false);
+          }
+        }, 10000);
+
+        // Get initial session with timeout
+        const sessionPromise = supabase.auth.getSession();
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Session timeout')), 5000)
+        );
+
+        const { data: { session }, error } = await Promise.race([
+          sessionPromise,
+          timeoutPromise
+        ]) as any;
         
         if (error) {
-          console.error('Error getting current user:', error);
+          console.error('Error getting session:', error);
           if (mounted) {
             setLoading(false);
           }
@@ -34,6 +51,10 @@ export const useAuth = () => {
         if (mounted) {
           setLoading(false);
         }
+      } finally {
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
       }
     };
 
@@ -41,7 +62,7 @@ export const useAuth = () => {
     initializeAuth();
 
     // Listen for auth changes
-    const { data: { subscription } } = auth.onAuthStateChange(async (event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!mounted) return;
 
       try {
@@ -56,12 +77,17 @@ export const useAuth = () => {
         }
       } catch (error) {
         console.error('Error in auth state change:', error);
-        setLoading(false);
+        if (mounted) {
+          setLoading(false);
+        }
       }
     });
 
     return () => {
       mounted = false;
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
       subscription.unsubscribe();
     };
   }, []);
@@ -72,16 +98,33 @@ export const useAuth = () => {
       
       if (error) {
         console.error('Error loading user profile:', error);
+        // Continue without profile data
+        const basicUser: User = {
+          id: supabaseUser.id,
+          username: supabaseUser.user_metadata?.username || supabaseUser.email?.split('@')[0] || 'User',
+          email: supabaseUser.email || '',
+          points: 0,
+          level: 1,
+          achievements: [],
+          createdAt: supabaseUser.created_at || new Date().toISOString(),
+          completedHunts: [],
+          createdHunts: [],
+        };
+        
+        setUser(basicUser);
+        setIsAuthenticated(true);
         setLoading(false);
         return;
       }
 
       if (profile) {
-        // Get user achievements
-        const { data: userAchievements, error: achievementsError } = await db.getUserAchievements(supabaseUser.id);
-        
-        if (achievementsError) {
-          console.error('Error loading achievements:', achievementsError);
+        // Get user achievements with error handling
+        let userAchievements: any[] = [];
+        try {
+          const { data: achievements } = await db.getUserAchievements(supabaseUser.id);
+          userAchievements = achievements || [];
+        } catch (error) {
+          console.error('Error loading achievements:', error);
         }
         
         const userData: User = {
@@ -92,7 +135,7 @@ export const useAuth = () => {
           level: profile.level || 1,
           avatar: profile.avatar_url,
           createdAt: profile.created_at,
-          achievements: userAchievements?.map(ua => ({
+          achievements: userAchievements.map(ua => ({
             id: ua.achievements?.id || '',
             name: ua.achievements?.name || '',
             description: ua.achievements?.description || '',
@@ -100,20 +143,47 @@ export const useAuth = () => {
             points: ua.achievements?.points || 0,
             rarity: ua.achievements?.rarity || 'common',
             unlockedAt: ua.unlocked_at,
-          })) || [],
-          completedHunts: [], // Will be loaded separately if needed
-          createdHunts: [], // Will be loaded separately if needed
+          })),
+          completedHunts: [],
+          createdHunts: [],
         };
 
         setUser(userData);
         setIsAuthenticated(true);
       } else {
-        // Profile doesn't exist, user might need to complete registration
-        setUser(null);
-        setIsAuthenticated(false);
+        // Profile doesn't exist, create basic user
+        const basicUser: User = {
+          id: supabaseUser.id,
+          username: supabaseUser.user_metadata?.username || supabaseUser.email?.split('@')[0] || 'User',
+          email: supabaseUser.email || '',
+          points: 0,
+          level: 1,
+          achievements: [],
+          createdAt: supabaseUser.created_at || new Date().toISOString(),
+          completedHunts: [],
+          createdHunts: [],
+        };
+        
+        setUser(basicUser);
+        setIsAuthenticated(true);
       }
     } catch (error) {
       console.error('Error loading user profile:', error);
+      // Create fallback user
+      const fallbackUser: User = {
+        id: supabaseUser.id,
+        username: supabaseUser.email?.split('@')[0] || 'User',
+        email: supabaseUser.email || '',
+        points: 0,
+        level: 1,
+        achievements: [],
+        createdAt: new Date().toISOString(),
+        completedHunts: [],
+        createdHunts: [],
+      };
+      
+      setUser(fallbackUser);
+      setIsAuthenticated(true);
     } finally {
       setLoading(false);
     }
