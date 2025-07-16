@@ -22,9 +22,6 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
 // Export du mode démo
 export { isDemoMode };
 
-// Fonctions d'authentification simplifiées avec mode démo
-export const authService = {
-}
 // Fonctions d'authentification simplifiées
 export const authService = {
   // Inscription
