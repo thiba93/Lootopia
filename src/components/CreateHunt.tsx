@@ -476,7 +476,7 @@ const CreateHunt: React.FC<CreateHuntProps> = ({ onCreateHunt, onBack }) => {
         {/* Map Modal */}
         {showMap && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 w-full max-w-4xl h-[80vh] border border-white/20">
+            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 w-full max-w-6xl h-[85vh] border border-white/20">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-xl font-semibold text-white">
                   {selectedClueIndex !== null 
@@ -495,7 +495,7 @@ const CreateHunt: React.FC<CreateHuntProps> = ({ onCreateHunt, onBack }) => {
                 </button>
               </div>
               
-              <div className="h-full">
+              <div className="h-[calc(100%-4rem)]">
                 <MapComponent
                   hunt={{
                     ...huntData,
@@ -520,6 +520,7 @@ const CreateHunt: React.FC<CreateHuntProps> = ({ onCreateHunt, onBack }) => {
                   currentClue={null}
                   completedClues={[]}
                   className="h-full"
+                  onMapClick={handleMapClick}
                 />
               </div>
               

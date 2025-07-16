@@ -1,6 +1,7 @@
 import React from 'react';
 import { MapPin, Clock, Users, Star, Trophy, Zap } from 'lucide-react';
 import { TreasureHunt } from '../types';
+import MapPreview from './MapPreview';
 
 interface TreasureHuntCardProps {
   hunt: TreasureHunt;
@@ -29,11 +30,18 @@ const TreasureHuntCard: React.FC<TreasureHuntCardProps> = ({ hunt, onJoin }) => 
   return (
     <div className="bg-white/5 backdrop-blur-sm rounded-xl sm:rounded-2xl overflow-hidden border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all duration-300 group transform hover:scale-[1.02]">
       <div className="relative h-40 sm:h-48 overflow-hidden">
-        <img
-          src={hunt.image || `https://images.pexels.com/photos/2675061/pexels-photo-2675061.jpeg?auto=compress&cs=tinysrgb&w=400`}
-          alt={hunt.title}
-          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-        />
+        {hunt.image ? (
+          <img
+            src={hunt.image}
+            alt={hunt.title}
+            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+          />
+        ) : (
+          <MapPreview 
+            hunt={hunt} 
+            className="w-full h-full"
+          />
+        )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
         <div className="absolute top-2 sm:top-4 left-2 sm:left-4">
           <span className={`bg-gradient-to-r ${getDifficultyColor(hunt.difficulty)} text-white px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium`}>
