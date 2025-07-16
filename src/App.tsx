@@ -16,7 +16,7 @@ import Toast from './components/Toast';
 import { TreasureHunt, Notification, Achievement } from './types';
 import { useTreasureHunts } from './hooks/useTreasureHunts';
 import { useToast } from './hooks/useToast';
-import { supabase } from './lib/supabase';
+import { supabase, isDemoMode } from './lib/supabase';
 
 type Page = 'home' | 'dashboard' | 'map' | 'create' | 'profile' | 'my-hunts';
 
@@ -38,6 +38,11 @@ function AppContent() {
   }, [isAuthenticated, user]);
 
   const loadNotifications = async () => {
+    // Skip Supabase queries in demo mode
+    if (isDemoMode) {
+      return;
+    }
+    
     if (!user) return;
     
     try {
@@ -81,6 +86,11 @@ function AppContent() {
   };
 
   const addNotification = async (notification: Omit<Notification, 'id' | 'createdAt'>) => {
+    // Skip Supabase operations in demo mode
+    if (isDemoMode) {
+      return;
+    }
+    
     if (!user) return;
     
     try {
@@ -121,6 +131,11 @@ function AppContent() {
   };
 
   const markNotificationAsRead = async (id: string) => {
+    // Skip Supabase operations in demo mode
+    if (isDemoMode) {
+      return;
+    }
+    
     try {
       const { error } = await supabase
         .from('notifications')
