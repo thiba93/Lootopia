@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import { User as SupabaseUser } from '@supabase/supabase-js';
-import { auth, db, supabase } from '../lib/supabase';
+import { auth, db } from '../lib/supabase';
 import { User } from '../types';
 
 export const useAuth = () => {
@@ -9,103 +8,55 @@ export const useAuth = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
-    let mounted = true;
-
-    const initializeAuth = async () => {
-      console.log('🔄 Initialisation de l\'authentification...');
-      
+    console.log('🔄 Initialisation useAuth...');
+    
+    // Vérifier s'il y a un utilisateur connecté
+    const checkCurrentUser = async () => {
       try {
-        // Récupérer la session actuelle sans timeout
-        const { data: { session }, error } = await supabase.auth.getSession();
-        
-        if (error) {
-          console.error('❌ Erreur récupération session:', error);
-          if (mounted) {
-            setLoading(false);
-          }
-          return;
-        }
-
-        console.log('📝 Session récupérée:', { 
-          hasSession: !!session, 
-          userId: session?.user?.id 
-        });
-
-        if (session?.user && mounted) {
-          console.log('✅ Session existante trouvée, chargement du profil...');
-          await loadUserProfile(session.user);
-        } else if (mounted) {
-          console.log('ℹ️ Aucune session existante');
-          setLoading(false);
+        const { user: currentUser } = await auth.getCurrentUser();
+        if (currentUser) {
+          console.log('✅ Utilisateur trouvé au démarrage:', currentUser.id);
+          await loadUserProfile(currentUser);
         }
       } catch (error) {
-        console.error('💥 Exception initialisation auth:', error);
-        if (mounted) {
-          setLoading(false);
-        }
+        console.error('❌ Erreur vérification utilisateur:', error);
       }
     };
 
-    // Initialiser l'authentification
-    initializeAuth();
+    checkCurrentUser();
 
     // Écouter les changements d'authentification
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (!mounted) return;
-
-      console.log('🔔 Changement d\'état auth:', { event, userId: session?.user?.id });
-
-      try {
-        if (event === 'SIGNED_IN' && session?.user) {
-          console.log('✅ Utilisateur connecté, chargement du profil...');
-          await loadUserProfile(session.user);
-        } else if (event === 'SIGNED_OUT') {
-          console.log('👋 Utilisateur déconnecté');
-          setUser(null);
-          setIsAuthenticated(false);
-          setLoading(false);
-        } else if (event === 'TOKEN_REFRESHED') {
-          console.log('🔄 Token rafraîchi');
-          // Ne pas recharger le profil, juste continuer
-        } else {
-          setLoading(false);
-        }
-      } catch (error) {
-        console.error('💥 Erreur changement état auth:', error);
-        if (mounted) {
-          setLoading(false);
-        }
+    const { data: { subscription } } = auth.onAuthStateChange(async (event, session) => {
+      console.log('🔔 Auth state change:', { event, user: session?.user?.id });
+      
+      if (event === 'SIGNED_IN' && session?.user) {
+        await loadUserProfile(session.user);
+      } else if (event === 'SIGNED_OUT') {
+        setUser(null);
+        setIsAuthenticated(false);
+        setLoading(false);
       }
     });
 
     return () => {
-      mounted = false;
-      subscription.unsubscribe();
+      if (subscription?.unsubscribe) {
+        subscription.unsubscribe();
+      }
     };
   }, []);
 
-  const loadUserProfile = async (supabaseUser: SupabaseUser) => {
-    console.log('🔄 Chargement profil utilisateur:', supabaseUser.id);
+  const loadUserProfile = async (supabaseUser: any) => {
+    console.log('🔄 Chargement profil:', supabaseUser.id);
+    setLoading(true);
     
     try {
-      // Essayer de récupérer le profil existant
+      // Essayer de récupérer le profil
       const { data: profile, error } = await db.getUserProfile(supabaseUser.id);
       
       let userData: User;
-
+      
       if (profile && !error) {
-        console.log('✅ Profil trouvé en base');
-        
-        // Charger les achievements de manière sécurisée
-        let userAchievements: any[] = [];
-        try {
-          const { data: achievements } = await db.getUserAchievements(supabaseUser.id);
-          userAchievements = achievements || [];
-          console.log('📊 Achievements chargés:', userAchievements.length);
-        } catch (error) {
-          console.warn('⚠️ Erreur chargement achievements (ignorée):', error);
-        }
-        
+        console.log('✅ Profil trouvé');
         userData = {
           id: profile.id,
           username: profile.username,
@@ -114,22 +65,13 @@ export const useAuth = () => {
           level: profile.level || 1,
           avatar: profile.avatar_url,
           createdAt: profile.created_at,
-          achievements: userAchievements.map(ua => ({
-            id: ua.achievements?.id || '',
-            name: ua.achievements?.name || '',
-            description: ua.achievements?.description || '',
-            icon: ua.achievements?.icon || '🏆',
-            points: ua.achievements?.points || 0,
-            rarity: ua.achievements?.rarity || 'common',
-            unlockedAt: ua.unlocked_at,
-          })),
+          achievements: [],
           completedHunts: [],
           createdHunts: [],
         };
       } else {
-        console.log('📝 Profil non trouvé, création d\'un nouveau profil...');
+        console.log('📝 Création nouveau profil');
         
-        // Créer un nouveau profil
         const newProfile = {
           id: supabaseUser.id,
           username: supabaseUser.user_metadata?.username || 
@@ -140,17 +82,8 @@ export const useAuth = () => {
           level: 1,
         };
 
-        try {
-          const { data: createdProfile, error: createError } = await db.createUserProfile(newProfile);
-          if (createError) {
-            console.warn('⚠️ Erreur création profil (continuons quand même):', createError);
-          } else {
-            console.log('✅ Nouveau profil créé');
-          }
-        } catch (error) {
-          console.warn('⚠️ Exception création profil (continuons quand même):', error);
-        }
-
+        await db.createUserProfile(newProfile);
+        
         userData = {
           id: supabaseUser.id,
           username: newProfile.username,
@@ -164,16 +97,16 @@ export const useAuth = () => {
         };
       }
 
-      console.log('✅ Profil utilisateur chargé:', userData.username);
+      console.log('✅ Profil chargé:', userData.username);
       setUser(userData);
       setIsAuthenticated(true);
     } catch (error) {
-      console.error('💥 Exception chargement profil:', error);
+      console.error('❌ Erreur chargement profil:', error);
       
-      // Créer un utilisateur de fallback pour ne pas bloquer l'app
+      // Créer un utilisateur de fallback
       const fallbackUser: User = {
         id: supabaseUser.id,
-        username: supabaseUser.email?.split('@')[0] || 'User',
+        username: supabaseUser.user_metadata?.username || 'User',
         email: supabaseUser.email || '',
         points: 0,
         level: 1,
@@ -183,7 +116,6 @@ export const useAuth = () => {
         createdHunts: [],
       };
       
-      console.log('🔄 Utilisation du profil de fallback');
       setUser(fallbackUser);
       setIsAuthenticated(true);
     } finally {
@@ -192,91 +124,80 @@ export const useAuth = () => {
   };
 
   const signUp = async (email: string, password: string, username: string) => {
-    console.log('🔄 Hook signUp appelé pour:', email);
+    console.log('🔄 Hook signUp:', email);
     setLoading(true);
     
     try {
       const { data, error } = await auth.signUp(email, password, username);
       
       if (error) {
-        console.error('❌ Erreur inscription hook:', error);
+        console.error('❌ Erreur inscription:', error);
+        setLoading(false);
         return { data: null, error };
       }
 
-      console.log('✅ Inscription réussie dans le hook');
+      console.log('✅ Inscription réussie');
+      
+      // Charger le profil immédiatement après inscription
+      if (data.user) {
+        await loadUserProfile(data.user);
+      }
+      
       return { data, error: null };
     } catch (error: any) {
-      console.error('💥 Exception inscription hook:', error);
-      return { data: null, error };
-    } finally {
+      console.error('💥 Exception inscription:', error);
       setLoading(false);
+      return { data: null, error: { message: error.message } };
     }
   };
 
   const signIn = async (email: string, password: string) => {
-    console.log('🔄 Hook signIn appelé pour:', email);
+    console.log('🔄 Hook signIn:', email);
     setLoading(true);
     
     try {
       const { data, error } = await auth.signIn(email, password);
       
       if (error) {
-        console.error('❌ Erreur connexion hook:', error);
+        console.error('❌ Erreur connexion:', error);
+        setLoading(false);
         return { data: null, error };
       }
 
-      console.log('✅ Connexion réussie dans le hook');
+      console.log('✅ Connexion réussie');
+      
+      // Charger le profil immédiatement après connexion
+      if (data.user) {
+        await loadUserProfile(data.user);
+      }
+      
       return { data, error: null };
     } catch (error: any) {
-      console.error('💥 Exception connexion hook:', error);
-      return { data: null, error };
-    } finally {
+      console.error('💥 Exception connexion:', error);
       setLoading(false);
+      return { data: null, error: { message: error.message } };
     }
   };
 
   const signOut = async () => {
-    console.log('🔄 Hook signOut appelé');
+    console.log('🔄 Hook signOut');
     setLoading(true);
     
     try {
       const { error } = await auth.signOut();
       
       if (error) {
-        console.error('❌ Erreur déconnexion hook:', error);
+        console.error('❌ Erreur déconnexion:', error);
         throw error;
       }
 
-      console.log('✅ Déconnexion réussie dans le hook');
+      console.log('✅ Déconnexion réussie');
       setUser(null);
       setIsAuthenticated(false);
     } catch (error) {
-      console.error('💥 Exception déconnexion hook:', error);
+      console.error('💥 Exception déconnexion:', error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const updateProfile = async (updates: Partial<User>) => {
-    if (!user) return;
-
-    try {
-      const { data, error } = await db.updateUserProfile(user.id, {
-        username: updates.username,
-        points: updates.points,
-        level: updates.level,
-        avatar_url: updates.avatar,
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      if (data) {
-        setUser(prev => prev ? { ...prev, ...updates } : null);
-      }
-    } catch (error) {
-      console.error('❌ Erreur mise à jour profil:', error);
     }
   };
 
@@ -287,6 +208,5 @@ export const useAuth = () => {
     signUp,
     signIn,
     signOut,
-    updateProfile,
   };
 };

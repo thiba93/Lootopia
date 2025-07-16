@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Mail, Lock, User, Eye, EyeOff } from 'lucide-react';
+import { X, Mail, Lock, User, Eye, EyeOff, AlertCircle, CheckCircle } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
 interface AuthModalProps {
@@ -8,8 +8,8 @@ interface AuthModalProps {
 
 const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
   const [isLogin, setIsLogin] = useState(true);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [formData, setFormData] = useState({
@@ -19,47 +19,69 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
     confirmPassword: ''
   });
   
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, loading } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('🔄 Soumission formulaire auth:', { isLogin, email: formData.email });
-    setLoading(true);
+    console.log('🔄 Soumission formulaire:', { isLogin, email: formData.email });
+    
     setError(null);
+    setSuccess(null);
+    
+    // Validation côté client
+    if (!formData.email || !formData.password) {
+      setError('Veuillez remplir tous les champs obligatoires');
+      return;
+    }
+
+    if (!isLogin) {
+      if (!formData.username || formData.username.length < 3) {
+        setError('Le nom d\'utilisateur doit contenir au moins 3 caractères');
+        return;
+      }
+      
+      if (formData.password.length < 6) {
+        setError('Le mot de passe doit contenir au moins 6 caractères');
+        return;
+      }
+      
+      if (formData.password !== formData.confirmPassword) {
+        setError('Les mots de passe ne correspondent pas');
+        return;
+      }
+    }
     
     try {
       if (isLogin) {
         console.log('🔑 Tentative de connexion...');
         const { error } = await signIn(formData.email, formData.password);
+        
         if (error) {
-          console.error('❌ Erreur connexion modal:', error);
-          setError(error.message);
-          return;
-        }
-        console.log('✅ Connexion réussie dans modal');
-      } else {
-        if (formData.password !== formData.confirmPassword) {
-          setError('Les mots de passe ne correspondent pas');
+          console.error('❌ Erreur connexion:', error);
+          setError(error.message || 'Erreur de connexion');
           return;
         }
         
+        console.log('✅ Connexion réussie, fermeture modal');
+        setSuccess('Connexion réussie !');
+        setTimeout(() => onClose(), 1000);
+      } else {
         console.log('📝 Tentative d\'inscription...');
         const { error } = await signUp(formData.email, formData.password, formData.username);
+        
         if (error) {
-          console.error('❌ Erreur inscription modal:', error);
-          setError(error.message);
+          console.error('❌ Erreur inscription:', error);
+          setError(error.message || 'Erreur d\'inscription');
           return;
         }
-        console.log('✅ Inscription réussie dans modal');
+        
+        console.log('✅ Inscription réussie, fermeture modal');
+        setSuccess('Inscription réussie ! Bienvenue sur Lootopia !');
+        setTimeout(() => onClose(), 1500);
       }
-      
-      console.log('🎉 Authentification réussie, fermeture modal');
-      onClose();
     } catch (err: any) {
-      console.error('💥 Exception dans modal auth:', err);
-      setError(err.message || 'Une erreur est survenue');
-    } finally {
-      setLoading(false);
+      console.error('💥 Exception formulaire:', err);
+      setError(err.message || 'Une erreur inattendue est survenue');
     }
   };
 
@@ -68,6 +90,9 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
       ...formData,
       [e.target.name]: e.target.value
     });
+    // Effacer les messages d'erreur/succès quand l'utilisateur tape
+    if (error) setError(null);
+    if (success) setSuccess(null);
   };
 
   return (
@@ -86,8 +111,16 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
         </div>
 
         {error && (
-          <div className="mb-4 p-3 bg-red-500/20 border border-red-500/30 rounded-lg text-red-200 text-sm">
-            {error}
+          <div className="mb-4 p-3 bg-red-500/20 border border-red-500/30 rounded-lg text-red-200 text-sm flex items-center space-x-2">
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        {success && (
+          <div className="mb-4 p-3 bg-green-500/20 border border-green-500/30 rounded-lg text-green-200 text-sm flex items-center space-x-2">
+            <CheckCircle className="w-4 h-4 flex-shrink-0" />
+            <span>{success}</span>
           </div>
         )}
 
@@ -104,6 +137,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
                 className="w-full bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg pl-10 pr-4 py-3 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
                 required={!isLogin}
                 minLength={3}
+                disabled={loading}
               />
             </div>
           )}
@@ -118,6 +152,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
               placeholder="Email"
               className="w-full bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg pl-10 pr-4 py-3 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
               required
+              disabled={loading}
             />
           </div>
 
@@ -132,11 +167,13 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
               className="w-full bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg pl-10 pr-12 py-3 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
               required
               minLength={6}
+              disabled={loading}
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
               className="absolute right-3 top-1/2 transform -translate-y-1/2 text-white/40 hover:text-white/60 transition-colors z-10"
+              disabled={loading}
             >
               {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
             </button>
@@ -154,21 +191,16 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
                 className="w-full bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg pl-10 pr-12 py-3 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
                 required={!isLogin}
                 minLength={6}
+                disabled={loading}
               />
               <button
                 type="button"
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-white/40 hover:text-white/60 transition-colors z-10"
+                disabled={loading}
               >
                 {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
               </button>
-            </div>
-          )}
-
-          {!isLogin && (
-            <div className="text-xs text-white/60 space-y-1">
-              <p>• Le mot de passe doit contenir au moins 6 caractères</p>
-              <p>• Le nom d'utilisateur doit contenir au moins 3 caractères</p>
             </div>
           )}
 
@@ -190,11 +222,29 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
 
         <div className="mt-6 text-center border-t border-white/10 pt-6">
           <button
-            onClick={() => setIsLogin(!isLogin)}
+            onClick={() => {
+              setIsLogin(!isLogin);
+              setError(null);
+              setSuccess(null);
+              setFormData({
+                email: '',
+                password: '',
+                username: '',
+                confirmPassword: ''
+              });
+            }}
             className="text-white/70 hover:text-white transition-colors text-sm"
+            disabled={loading}
           >
             {isLogin ? 'Pas de compte ? Inscrivez-vous' : 'Déjà un compte ? Connectez-vous'}
           </button>
+        </div>
+
+        {/* Mode de fonctionnement */}
+        <div className="mt-4 text-center">
+          <p className="text-white/40 text-xs">
+            Mode de démonstration - Authentification locale
+          </p>
         </div>
       </div>
     </div>
