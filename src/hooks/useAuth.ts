@@ -14,7 +14,7 @@ export const useAuth = () => {
     const initializeAuth = async () => {
       try {
         // Get initial session
-        const { user: supabaseUser, error } = await auth.getCurrentUser();
+        const { data: { session }, error } = await supabase.auth.getSession();
         
         if (error) {
           console.error('Error getting current user:', error);
@@ -24,8 +24,8 @@ export const useAuth = () => {
           return;
         }
 
-        if (supabaseUser && mounted) {
-          await loadUserProfile(supabaseUser);
+        if (session?.user && mounted) {
+          await loadUserProfile(session.user);
         } else if (mounted) {
           setLoading(false);
         }
