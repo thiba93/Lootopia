@@ -260,14 +260,6 @@ function AppContent() {
 
   const unreadNotificationCount = notifications.filter(n => !n.isRead && n.userId === user?.id).length;
 
-  if (authLoading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center">
-        <LoadingSpinner message="Chargement de l'authentification..." />
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
       {/* Navigation */}

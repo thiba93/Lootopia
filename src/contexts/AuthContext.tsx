@@ -30,7 +30,7 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [supabaseUser, setSupabaseUser] = useState<SupabaseUser | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   const isAuthenticated = !!user && !!supabaseUser;
 
@@ -86,14 +86,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             setUser(null);
             setSupabaseUser(null);
           }
-          setLoading(false);
         }
       } catch (error) {
         console.error('❌ Erreur initialisation:', error);
         if (mounted) {
           setUser(null);
           setSupabaseUser(null);
-          setLoading(false);
         }
       }
     };
