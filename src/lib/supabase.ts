@@ -24,6 +24,7 @@ export { isDemoMode };
 
 // Fonctions d'authentification simplifiées avec mode démo
 export const authService = {
+}
 // Fonctions d'authentification simplifiées
 export const authService = {
   // Inscription
