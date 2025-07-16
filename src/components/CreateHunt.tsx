@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ArrowLeft, Plus, Trash2, MapPin, Save } from 'lucide-react';
 import { TreasureHunt, Clue, Reward } from '../types';
+import MapComponent from './MapComponent';
 
 interface CreateHuntProps {
   onCreateHunt: (hunt: Omit<TreasureHunt, 'id' | 'createdAt'>) => void;
@@ -24,6 +25,8 @@ const CreateHunt: React.FC<CreateHuntProps> = ({ onCreateHunt, onBack }) => {
 
   const [clues, setClues] = useState<Omit<Clue, 'id'>[]>([]);
   const [rewards, setRewards] = useState<Omit<Reward, 'id'>[]>([]);
+  const [showMap, setShowMap] = useState(false);
+  const [selectedClueIndex, setSelectedClueIndex] = useState<number | null>(null);
 
   const addClue = () => {
     setClues([...clues, {
@@ -102,6 +105,31 @@ const CreateHunt: React.FC<CreateHuntProps> = ({ onCreateHunt, onBack }) => {
 
     console.log('🔄 Soumission chasse:', hunt);
     onCreateHunt(hunt);
+  };
+
+  const handleMapClick = (lat: number, lng: number) => {
+    if (selectedClueIndex !== null) {
+      updateClue(selectedClueIndex, 'location', { lat, lng });
+      setShowMap(false);
+      setSelectedClueIndex(null);
+    } else {
+      // Update hunt location
+      setHuntData({
+        ...huntData,
+        location: { ...huntData.location, lat, lng }
+      });
+      setShowMap(false);
+    }
+  };
+
+  const openMapForLocation = () => {
+    setSelectedClueIndex(null);
+    setShowMap(true);
+  };
+
+  const openMapForClue = (index: number) => {
+    setSelectedClueIndex(index);
+    setShowMap(true);
   };
 
   return (
@@ -215,7 +243,20 @@ const CreateHunt: React.FC<CreateHuntProps> = ({ onCreateHunt, onBack }) => {
                   placeholder="Adresse de départ"
                   required
                 />
+                <button
+                  type="button"
+                  onClick={openMapForLocation}
+                  className="bg-blue-500/20 text-blue-400 px-4 py-3 rounded-lg hover:bg-blue-500/30 transition-colors"
+                  title="Choisir sur la carte"
+                >
+                  🗺️
+                </button>
               </div>
+              {huntData.location.lat !== 48.8566 && huntData.location.lng !== 2.3522 && (
+                <div className="mt-2 text-sm text-green-400">
+                  📍 Position: {huntData.location.lat.toFixed(6)}, {huntData.location.lng.toFixed(6)}
+                </div>
+              )}
             </div>
           </div>
 
@@ -260,6 +301,26 @@ const CreateHunt: React.FC<CreateHuntProps> = ({ onCreateHunt, onBack }) => {
                   </div>
                   
                   <div className="space-y-4">
+                    <div>
+                      <label className="block text-white/70 mb-2">Position</label>
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="text"
+                          value={`${clue.location?.lat?.toFixed(6) || huntData.location.lat.toFixed(6)}, ${clue.location?.lng?.toFixed(6) || huntData.location.lng.toFixed(6)}`}
+                          readOnly
+                          className="flex-1 bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white/60 text-sm"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => openMapForClue(index)}
+                          className="bg-blue-500/20 text-blue-400 px-4 py-3 rounded-lg hover:bg-blue-500/30 transition-colors"
+                          title="Choisir sur la carte"
+                        >
+                          🗺️
+                        </button>
+                      </div>
+                    </div>
+                    
                     <div>
                       <label className="block text-white/70 mb-2">Type</label>
                       <select
@@ -411,6 +472,65 @@ const CreateHunt: React.FC<CreateHuntProps> = ({ onCreateHunt, onBack }) => {
             </button>
           </div>
         </form>
+
+        {/* Map Modal */}
+        {showMap && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 w-full max-w-4xl h-[80vh] border border-white/20">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-semibold text-white">
+                  {selectedClueIndex !== null 
+                    ? `Choisir la position de l'indice ${selectedClueIndex + 1}`
+                    : 'Choisir la position de départ'
+                  }
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowMap(false);
+                    setSelectedClueIndex(null);
+                  }}
+                  className="text-white/70 hover:text-white transition-colors"
+                >
+                  ✕
+                </button>
+              </div>
+              
+              <div className="h-full">
+                <MapComponent
+                  hunt={{
+                    ...huntData,
+                    id: 'temp',
+                    clues: clues.map((clue, i) => ({
+                      ...clue,
+                      id: `temp-${i}`,
+                      order: i + 1,
+                      location: clue.location || huntData.location,
+                      radius: clue.radius || 50
+                    })),
+                    rewards: [],
+                    participants: 0,
+                    createdBy: 'temp',
+                    createdAt: new Date().toISOString(),
+                    status: 'active',
+                    rating: 0,
+                    reviews: [],
+                    isPublic: true
+                  }}
+                  userLocation={null}
+                  currentClue={null}
+                  completedClues={[]}
+                  className="h-full"
+                />
+              </div>
+              
+              <div className="mt-4 text-center">
+                <p className="text-white/70 text-sm">
+                  Cliquez sur la carte pour définir la position
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
