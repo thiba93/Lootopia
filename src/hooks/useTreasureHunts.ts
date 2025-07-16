@@ -157,6 +157,25 @@ export const useTreasureHunts = () => {
   }, []);
 
   const createTreasureHunt = async (huntData: any, userId: string) => {
+    // Vérifier que l'utilisateur est un organisateur
+    if (!userId.includes('admin') && !userId.startsWith('demo-')) {
+      // En mode production, vérifier le rôle depuis la base de données
+      try {
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('role')
+          .eq('id', userId)
+          .single();
+        
+        if (profile?.role !== 'organizer') {
+          return { data: null, error: 'Seuls les organisateurs peuvent créer des chasses' };
+        }
+      } catch (error) {
+        console.warn('Erreur vérification rôle:', error);
+        return { data: null, error: 'Erreur de vérification des permissions' };
+      }
+    }
+    
     setLoading(true);
     try {
       console.log('🔄 Création de la chasse:', huntData.title);

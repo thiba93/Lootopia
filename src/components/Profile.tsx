@@ -63,6 +63,13 @@ const Profile: React.FC<ProfileProps> = ({ user, onBack }) => {
                   <Trophy className="w-5 h-5" />
                   <span className="font-semibold">Niveau {user.level}</span>
                 </div>
+                <div className={`flex items-center space-x-1 px-3 py-1 rounded-full text-sm font-medium ${
+                  user.role === 'organizer' 
+                    ? 'bg-green-500/20 text-green-400 border border-green-500/30' 
+                    : 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                }`}>
+                  <span>{user.role === 'organizer' ? '👑 Organisateur' : '🎮 Joueur'}</span>
+                </div>
               </div>
             </div>
           </div>

@@ -123,7 +123,8 @@ const MyHunts: React.FC<MyHuntsProps> = ({ user, onBack, onJoinHunt }) => {
       setCompletedHunts(completed);
 
       // Charger les chasses créées (si organisateur)
-      // Charger les chasses créées pour tous les utilisateurs
+      // Charger les chasses créées uniquement pour les organisateurs
+      if (user.role === 'organizer') {
       try {
         const { data: created, error: createdError } = await supabase
           .from('treasure_hunts')
@@ -183,12 +184,16 @@ const MyHunts: React.FC<MyHuntsProps> = ({ user, onBack, onJoinHunt }) => {
           }));
 
           setCreatedHunts(formattedCreated);
+        } else {
+          setCreatedHunts([]);
         }
       } catch (error) {
         console.warn('Erreur chargement chasses créées:', error);
-        // Mode démo - afficher les chasses créées localement
-        const localCreatedHunts = treasureHunts.filter(hunt => hunt.createdBy === user.id);
-        setCreatedHunts(localCreatedHunts);
+        setCreatedHunts([]);
+      }
+      } else {
+        // Les joueurs n'ont pas de chasses créées
+        setCreatedHunts([]);
       }
     } catch (error) {
       console.error('Erreur chargement mes chasses:', error);
@@ -224,7 +229,7 @@ const MyHunts: React.FC<MyHuntsProps> = ({ user, onBack, onJoinHunt }) => {
   const tabs = [
     { id: 'active', label: 'En cours', count: activeHunts.length },
     { id: 'completed', label: 'Terminées', count: completedHunts.length },
-    { id: 'created', label: 'Mes créations', count: createdHunts.length }
+    { id: 'created', label: 'Mes créations', count: createdHunts.length, show: user.role === 'organizer' }
   ];
 
   return (
@@ -244,7 +249,7 @@ const MyHunts: React.FC<MyHuntsProps> = ({ user, onBack, onJoinHunt }) => {
 
         {/* Tabs */}
         <div className="flex space-x-1 bg-white/5 backdrop-blur-sm rounded-xl p-1 mb-8">
-          {tabs.map((tab) => (
+          {tabs.filter(tab => tab.id !== 'created' || user.role === 'organizer').map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
@@ -387,7 +392,7 @@ const MyHunts: React.FC<MyHuntsProps> = ({ user, onBack, onJoinHunt }) => {
             )}
 
             {/* Chasses créées (organisateur) */}
-            {activeTab === 'created' && (
+            {activeTab === 'created' && user.role === 'organizer' && (
               <div>
                 {createdHunts.length === 0 ? (
                   <div className="text-center py-12">

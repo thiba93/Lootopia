@@ -174,7 +174,15 @@ function AppContent() {
   };
   
   const handleCreateHunt = async (newHunt: any) => {
-    if (!user) return;
+    if (!user) {
+      error('Erreur', 'Vous devez être connecté pour créer une chasse');
+      return;
+    }
+    
+    if (user.role !== 'organizer') {
+      error('Accès refusé', 'Seuls les organisateurs peuvent créer des chasses au trésor');
+      return;
+    }
     
     info('Création en cours', 'Votre chasse au trésor est en cours de création...');
     
@@ -257,6 +265,11 @@ function AppContent() {
           />
         );
       case 'create':
+        if (!user || user.role !== 'organizer') {
+          error('Accès refusé', 'Seuls les organisateurs peuvent créer des chasses');
+          setCurrentPage('dashboard');
+          return null;
+        }
         return (
           <CreateHunt 
             onCreateHunt={handleCreateHunt}
