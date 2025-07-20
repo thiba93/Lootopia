@@ -1,3 +1,4 @@
+
 # 🏴‍☠️ Lootopia - Chasses au Trésor Géolocalisées
 
 > Une plateforme web immersive pour créer et participer à des chasses au trésor dans le monde réel !
@@ -73,3 +74,5 @@ MIT © 2024 - Fait avec ❤️ pour les explorateurs urbains
 ---
 
 **🎯 Prêt pour l'aventure ?** Lancez `npm run dev` et découvrez votre ville sous un nouveau jour !
+=======
+# Lootopia
